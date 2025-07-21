@@ -97,15 +97,6 @@ const PointOfSale = ({
     } else {
       showModal(`Producto con código ${decodedText} no encontrado.`, "error");
     }
-    setIsScannerOpen(false); // Close scanner on success
-  };
-
-  const handleScanError = (error) => {
-    setIsScannerOpen(false);
-    // Optional: show a modal with the error, but not for manual closing
-    if (error !== "Scanner closed manually") {
-      showModal(error, "error");
-    }
   };
   const handleManualAdd = (productId) => {
     if (!productId) return;
@@ -296,7 +287,6 @@ const PointOfSale = ({
       {isScannerOpen && (
         <BarcodeScanner
           onScanSuccess={handleScanSuccess}
-          onScanError={handleScanError}
           onClose={() => setIsScannerOpen(false)}
         />
       )}

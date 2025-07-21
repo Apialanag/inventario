@@ -93,14 +93,6 @@ const ProductList = ({
     setSearchTerm(decodedText);
   };
 
-  const handleScanError = (error) => {
-    setIsScannerOpen(false);
-    // Optional: show a modal with the error, but not for manual closing
-    if (error !== "Scanner closed manually") {
-      showModal(error, "error");
-    }
-  };
-
   const handleQuickStockChange = async (product, amount) => {
     const newStock = (product.stock || 0) + amount;
     if (newStock < 0) {
@@ -186,7 +178,6 @@ const ProductList = ({
       {isScannerOpen && (
         <BarcodeScanner
           onScanSuccess={handleScanSuccess}
-          onScanError={handleScanError}
           onClose={() => setIsScannerOpen(false)}
         />
       )}
