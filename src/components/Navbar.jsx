@@ -66,6 +66,12 @@ const Navbar = ({ setView, currentView, onLogout }) => {
             Reportes
           </button>
           <button
+            onClick={() => setView("expiration-report")}
+            className={getButtonClass("expiration-report")}
+          >
+            Control de Caducidad
+          </button>
+          <button
             onClick={() => setView("settings")}
             className={getButtonClass("settings")}
           >

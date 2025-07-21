@@ -25,6 +25,7 @@ import Reports from "./views/Reports.jsx";
 import PointOfSale from "./views/PointOfSale.jsx";
 import Settings from "./views/Settings.jsx";
 import Suppliers from "./views/Suppliers.jsx";
+import ExpirationReport from "./views/ExpirationReport.jsx";
 
 // Hook de inventario que incluye productos, movimientos y proveedores
 const useInventory = (userId) => {
@@ -173,6 +174,7 @@ const App = () => {
         "settings",
         "adjust-stock",
         "movements",
+        "expiration-report",
       ];
       setView(validViews.includes(hash) ? hash : "dashboard");
     };
@@ -285,6 +287,13 @@ const App = () => {
         return (
           <MovementHistory
             movements={movements}
+            onBack={() => navigateTo("dashboard")}
+          />
+        );
+      case "expiration-report":
+        return (
+          <ExpirationReport
+            products={products}
             onBack={() => navigateTo("dashboard")}
           />
         );
