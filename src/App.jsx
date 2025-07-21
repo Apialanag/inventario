@@ -184,6 +184,7 @@ const App = () => {
   }, []);
 
   const navigateTo = (newView) => {
+    console.log("Cambiando a la vista:", newView);
     window.location.hash = newView;
   };
   const showModal = (message, type = "info", onConfirm = null) =>
