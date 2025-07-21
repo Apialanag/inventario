@@ -11,6 +11,7 @@ import {
   addDoc,
 } from "firebase/firestore";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
+import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 import { createWebpayTransaction } from "../services/transbankService.js";
 import { createMercadoPagoPreference } from "../services/mercadoPagoService.js";
 
@@ -27,6 +28,9 @@ const PointOfSale = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [settings, setSettings] = useState(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
+
+  // --- Lógica de Escáner Físico ---
+  useBarcodeReader(handleScanSuccess);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -92,15 +96,6 @@ const PointOfSale = ({
       addProductToCart(foundProduct);
     } else {
       showModal(`Producto con código ${decodedText} no encontrado.`, "error");
-    }
-    setIsScannerOpen(false); // Close scanner on success
-  };
-
-  const handleScanError = (error) => {
-    setIsScannerOpen(false);
-    // Optional: show a modal with the error, but not for manual closing
-    if (error !== "Scanner closed manually") {
-      showModal(error, "error");
     }
   };
   const handleManualAdd = (productId) => {
@@ -292,7 +287,6 @@ const PointOfSale = ({
       {isScannerOpen && (
         <BarcodeScanner
           onScanSuccess={handleScanSuccess}
-          onScanError={handleScanError}
           onClose={() => setIsScannerOpen(false)}
         />
       )}

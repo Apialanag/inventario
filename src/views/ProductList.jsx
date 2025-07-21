@@ -4,6 +4,7 @@ import { unparse } from "papaparse";
 
 // Importamos todos los componentes necesarios
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
+import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 import BulkImportModal from "../components/BulkImportModal.jsx";
 import BatchViewModal from "../components/BatchViewModal.jsx"; // El nuevo modal para ver lotes
 
@@ -33,6 +34,12 @@ const ProductList = ({
   const itemsPerPage = 10;
   // Nuevo estado para el modal de visualización de lotes
   const [viewingBatchesFor, setViewingBatchesFor] = useState(null);
+
+  // --- Lógica de Escáner Físico ---
+  // Cuando se escanea un código, se establece como término de búsqueda.
+  useBarcodeReader((barcode) => {
+    setSearchTerm(barcode);
+  });
 
   // --- Lógica de Filtrado, Ordenamiento y Paginación ---
   const filteredProducts = useMemo(() => {
@@ -84,14 +91,6 @@ const ProductList = ({
   const handleScanSuccess = (decodedText) => {
     setIsScannerOpen(false);
     setSearchTerm(decodedText);
-  };
-
-  const handleScanError = (error) => {
-    setIsScannerOpen(false);
-    // Optional: show a modal with the error, but not for manual closing
-    if (error !== "Scanner closed manually") {
-      showModal(error, "error");
-    }
   };
 
   const handleQuickStockChange = async (product, amount) => {
@@ -179,7 +178,6 @@ const ProductList = ({
       {isScannerOpen && (
         <BarcodeScanner
           onScanSuccess={handleScanSuccess}
-          onScanError={handleScanError}
           onClose={() => setIsScannerOpen(false)}
         />
       )}
