@@ -2,6 +2,7 @@ import React from "react";
 
 // La Navbar ahora recibe la función onLogout
 const Navbar = ({ setView, currentView, onLogout }) => {
+  console.log("Renderizando Navbar. Vista actual:", currentView);
   const getButtonClass = (viewName) => {
     const baseClass =
       "px-3 py-2 rounded-lg text-white font-medium text-base border border-transparent transition duration-200";
@@ -64,6 +65,12 @@ const Navbar = ({ setView, currentView, onLogout }) => {
             className={getButtonClass("reports")}
           >
             Reportes
+          </button>
+          <button
+            onClick={() => setView("expiration-report")}
+            className={getButtonClass("expiration-report")}
+          >
+            Control de Caducidad
           </button>
           <button
             onClick={() => setView("settings")}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
+import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 
 // El formulario ahora recibe la lista de 'suppliers' como una prop
 const ProductForm = ({
@@ -31,6 +32,12 @@ const ProductForm = ({
 
   const [formData, setFormData] = useState(initialState);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  // --- Lógica de Escáner Físico ---
+  // Cuando se escanea un código, se establece en el campo 'barcode' del formulario.
+  useBarcodeReader((barcode) => {
+    setFormData((prev) => ({ ...prev, barcode }));
+  });
 
   useEffect(() => {
     if (productToEdit) {

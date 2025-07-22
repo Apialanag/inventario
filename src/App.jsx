@@ -10,7 +10,6 @@ import {
 } from "firebase/firestore";
 import { db, appId } from "./firebase/config.jsx";
 import { useAuth } from "./hooks/useAuth.js";
-import { confirmWebpayTransaction } from "./services/transbankService.js";
 
 // Componentes y Vistas
 import Navbar from "./components/Navbar.jsx";
@@ -25,6 +24,7 @@ import Reports from "./views/Reports.jsx";
 import PointOfSale from "./views/PointOfSale.jsx";
 import Settings from "./views/Settings.jsx";
 import Suppliers from "./views/Suppliers.jsx";
+import ExpirationReport from "./views/ExpirationReport.jsx";
 
 // Hook de inventario que incluye productos, movimientos y proveedores
 const useInventory = (userId) => {
@@ -173,6 +173,7 @@ const App = () => {
         "settings",
         "adjust-stock",
         "movements",
+        "expiration-report",
       ];
       setView(validViews.includes(hash) ? hash : "dashboard");
     };
@@ -182,6 +183,7 @@ const App = () => {
   }, []);
 
   const navigateTo = (newView) => {
+    console.log("Cambiando a la vista:", newView);
     window.location.hash = newView;
   };
   const showModal = (message, type = "info", onConfirm = null) =>
@@ -285,6 +287,13 @@ const App = () => {
         return (
           <MovementHistory
             movements={movements}
+            onBack={() => navigateTo("dashboard")}
+          />
+        );
+      case "expiration-report":
+        return (
+          <ExpirationReport
+            products={products}
             onBack={() => navigateTo("dashboard")}
           />
         );

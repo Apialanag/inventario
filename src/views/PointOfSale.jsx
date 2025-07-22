@@ -11,6 +11,7 @@ import {
   addDoc,
 } from "firebase/firestore";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
+import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 import { createWebpayTransaction } from "../services/transbankService.js";
 import { createMercadoPagoPreference } from "../services/mercadoPagoService.js";
 
@@ -27,6 +28,9 @@ const PointOfSale = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [settings, setSettings] = useState(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
+
+  // --- Lógica de Escáner Físico ---
+  useBarcodeReader(handleScanSuccess);
 
   useEffect(() => {
     const fetchSettings = async () => {
