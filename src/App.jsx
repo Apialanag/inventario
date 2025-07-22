@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import {
   collection,
   onSnapshot,
@@ -21,7 +21,7 @@ import ProductForm from "./views/ProductForm.jsx";
 import StockAdjustment from "./views/StockAdjustment.jsx";
 import MovementHistory from "./views/MovementHistory.jsx";
 import Reports from "./views/Reports.jsx";
-import PointOfSale from "./views/PointOfSale.jsx";
+const PointOfSale = lazy(() => import("./views/PointOfSale.jsx"));
 import Settings from "./views/Settings.jsx";
 import Suppliers from "./views/Suppliers.jsx";
 import ExpirationReport from "./views/ExpirationReport.jsx";
@@ -250,7 +250,11 @@ const App = () => {
       case "dashboard":
         return <Dashboard {...commonProps} />;
       case "pos":
-        return <PointOfSale {...commonProps} />;
+        return (
+          <Suspense fallback={<div className="text-center p-10">Cargando Punto de Venta...</div>}>
+            <PointOfSale {...commonProps} />
+          </Suspense>
+        );
       case "products":
         return (
           <ProductList
