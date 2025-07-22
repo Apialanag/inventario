@@ -13,14 +13,7 @@ import {
  * El cliente (nuestra app React) solo llamaría a nuestra propia función en el backend.
  */
 
-// Configuración inicial para usar el entorno de prueba de Transbank.
-const tx = new WebpayPlus.Transaction(
-  new Options(
-    IntegrationCommerceCodes.WEBPAY_PLUS,
-    IntegrationApiKeys.WEBPAY,
-    Environment.Integration
-  )
-);
+// No se instancia 'tx' aquí para evitar problemas de inicialización en el navegador.
 
 /**
  * Función para crear una transacción de Webpay Plus.
@@ -37,6 +30,14 @@ export const createWebpayTransaction = async (
   returnUrl
 ) => {
   try {
+    // La instanciación se mueve aquí, dentro de la función.
+    const tx = new WebpayPlus.Transaction(
+      new Options(
+        IntegrationCommerceCodes.WEBPAY_PLUS,
+        IntegrationApiKeys.WEBPAY,
+        Environment.Integration
+      )
+    );
     const response = await tx.create(buyOrder, sessionId, amount, returnUrl);
 
     if (response.url && response.token) {
@@ -59,6 +60,14 @@ export const createWebpayTransaction = async (
  */
 export const confirmWebpayTransaction = async (token) => {
   try {
+    // La instanciación también se mueve aquí.
+    const tx = new WebpayPlus.Transaction(
+      new Options(
+        IntegrationCommerceCodes.WEBPAY_PLUS,
+        IntegrationApiKeys.WEBPAY,
+        Environment.Integration
+      )
+    );
     const response = await tx.commit(token);
     // La respuesta contiene el estado de la transacción (si fue aprobada, rechazada, etc.)
     // response.status === 'AUTHORIZED' significa que el pago fue exitoso.
