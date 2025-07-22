@@ -10,7 +10,6 @@ import {
 } from "firebase/firestore";
 import { db, appId } from "./firebase/config.jsx";
 import { useAuth } from "./hooks/useAuth.js";
-import { confirmWebpayTransaction } from "./services/transbankService.js";
 
 // Componentes y Vistas
 import Navbar from "./components/Navbar.jsx";

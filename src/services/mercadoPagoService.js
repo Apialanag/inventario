@@ -23,7 +23,7 @@ export const createMercadoPagoPreference = async (
     throw new Error("El Access Token de Mercado Pago no está configurado.");
   }
 
-  // Configuramos el SDK con el Access Token del socio
+  // La configuración se mueve aquí para que se ejecute solo cuando se llama a la función.
   mercadopago.configure({
     access_token: accessToken,
   });
