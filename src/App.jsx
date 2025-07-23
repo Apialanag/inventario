@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import {
   collection,
   onSnapshot,
@@ -8,9 +8,7 @@ import {
   deleteDoc,
   writeBatch,
 } from "firebase/firestore";
-import { db, appId } from "./firebase/config.jsx";
 import { useAuth } from "./hooks/useAuth.js";
-import { confirmWebpayTransaction } from "./services/transbankService.js";
 
 // Componentes y Vistas
 import Navbar from "./components/Navbar.jsx";
@@ -22,7 +20,7 @@ import ProductForm from "./views/ProductForm.jsx";
 import StockAdjustment from "./views/StockAdjustment.jsx";
 import MovementHistory from "./views/MovementHistory.jsx";
 import Reports from "./views/Reports.jsx";
-import PointOfSale from "./views/PointOfSale.jsx";
+const PointOfSale = lazy(() => import("./views/PointOfSale.jsx"));
 import Settings from "./views/Settings.jsx";
 import Suppliers from "./views/Suppliers.jsx";
 import ExpirationReport from "./views/ExpirationReport.jsx";
@@ -42,16 +40,18 @@ const useInventory = (userId) => {
       return;
     }
     setLoading(true);
-    const paths = {
-      products: `artifacts/${appId}/users/${userId}/products`,
-      movements: `artifacts/${appId}/users/${userId}/movements`,
-      suppliers: `artifacts/${appId}/users/${userId}/suppliers`,
-    };
+    // Importamos db y appId aquí para evitar dependencias a nivel de módulo
+    import("./firebase/config.jsx").then(({ db, appId }) => {
+      const paths = {
+        products: `artifacts/${appId}/users/${userId}/products`,
+        movements: `artifacts/${appId}/users/${userId}/movements`,
+        suppliers: `artifacts/${appId}/users/${userId}/suppliers`,
+      };
 
-    const unsubProducts = onSnapshot(
-      collection(db, paths.products),
-      (snap) => {
-        setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const unsubProducts = onSnapshot(
+        collection(db, paths.products),
+        (snap) => {
+          setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setCategories([
           "Todas",
           ...new Set(snap.docs.map((d) => d.data().category).filter(Boolean)),
@@ -81,11 +81,12 @@ const useInventory = (userId) => {
       (err) => setError("Error al cargar proveedores.")
     );
 
-    return () => {
-      unsubProducts();
-      unsubMovements();
-      unsubSuppliers();
-    };
+      return () => {
+        unsubProducts();
+        unsubMovements();
+        unsubSuppliers();
+      };
+    });
   }, [userId]);
 
   return { products, movements, categories, suppliers, loading, error };
@@ -120,27 +121,29 @@ const App = () => {
     // Si no hay usuario, salimos de la función
     if (!user) return;
 
-    // Referencia al documento de configuración del usuario en Firestore
-    const settingsRef = doc(
-      db,
-      `artifacts/${appId}/users/${user.uid}/settings`,
-      "app_config"
-    );
+    import("./firebase/config.jsx").then(({ db, appId }) => {
+      // Referencia al documento de configuración del usuario en Firestore
+      const settingsRef = doc(
+        db,
+        `artifacts/${appId}/users/${user.uid}/settings`,
+        "app_config"
+      );
 
-    // Suscripción a cambios en el documento de configuración en tiempo real
-    const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
-      // Si el documento existe, actualizamos el estado 'settings'
-      if (docSnap.exists()) {
-        setSettings(docSnap.data());
-      } else {
-        // Si no existe, establecemos una configuración por defecto
-        setSettings({ inventoryMethod: "cpp", posProvider: "none" });
-      }
+      // Suscripción a cambios en el documento de configuración en tiempo real
+      const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+        // Si el documento existe, actualizamos el estado 'settings'
+        if (docSnap.exists()) {
+          setSettings(docSnap.data());
+        } else {
+          // Si no existe, establecemos una configuración por defecto
+          setSettings({ inventoryMethod: "cpp", posProvider: "none" });
+        }
+      });
+
+      // Función de limpieza para desuscribirse cuando el componente se desmonte o las dependencias cambien
+      return () => unsubscribe();
     });
-
-    // Función de limpieza para desuscribirse cuando el componente se desmonte o las dependencias cambien
-    return () => unsubscribe();
-  }, [user, db, appId]); // Dependencias: se re-ejecuta si el usuario, db o appId cambian
+  }, [user]); // Dependencias: se re-ejecuta si el usuario, db o appId cambian
 
   // --- LÓGICA PARA EL TEMA (MODO OSCURO) ---
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
@@ -238,8 +241,6 @@ const App = () => {
     const commonProps = {
       products,
       userId: user.uid,
-      db,
-      appId,
       setView: navigateTo,
       showModal,
       closeModal,
@@ -251,7 +252,11 @@ const App = () => {
       case "dashboard":
         return <Dashboard {...commonProps} />;
       case "pos":
-        return <PointOfSale {...commonProps} />;
+        return (
+          <Suspense fallback={<div className="text-center p-10">Cargando Punto de Venta...</div>}>
+            <PointOfSale {...commonProps} />
+          </Suspense>
+        );
       case "products":
         return (
           <ProductList
