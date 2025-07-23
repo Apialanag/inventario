@@ -241,8 +241,6 @@ const App = () => {
     const commonProps = {
       products,
       userId: user.uid,
-      db,
-      appId,
       setView: navigateTo,
       showModal,
       closeModal,

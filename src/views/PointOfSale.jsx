@@ -18,8 +18,6 @@ import { createMercadoPagoPreference } from "../services/mercadoPagoService.js";
 const PointOfSale = ({
   products = [],
   userId,
-  db,
-  appId,
   showModal,
   onBack,
 }) => {
@@ -35,6 +33,7 @@ const PointOfSale = ({
   useEffect(() => {
     const fetchSettings = async () => {
       setLoadingSettings(true);
+      const { db, appId } = await import("../firebase/config.jsx");
       const settingsRef = doc(
         db,
         `artifacts/${appId}/users/${userId}/settings`,
@@ -49,7 +48,7 @@ const PointOfSale = ({
       setLoadingSettings(false);
     };
     fetchSettings();
-  }, [db, userId, appId]);
+  }, [userId]);
 
   // --- Lógica del Carrito y Escáner ---
   const addProductToCart = (product) => {
@@ -106,14 +105,15 @@ const PointOfSale = ({
 
   // --- Lógica para Finalizar la Venta ---
   const processSale = async (paymentMethod) => {
+    const { db, appId } = await import("../firebase/config.jsx");
     if (settings.inventoryMethod === "fifo") {
-      await processSaleFIFO(paymentMethod);
+      await processSaleFIFO(paymentMethod, db, appId);
     } else {
-      await processSaleCPP(paymentMethod);
+      await processSaleCPP(paymentMethod, db, appId);
     }
   };
 
-  const processSaleFIFO = async (paymentMethod) => {
+  const processSaleFIFO = async (paymentMethod, db, appId) => {
     const batch = writeBatch(db);
     for (const item of cart) {
       let quantityToDeduct = item.quantity;
@@ -162,7 +162,7 @@ const PointOfSale = ({
     await batch.commit();
   };
 
-  const processSaleCPP = async (paymentMethod) => {
+  const processSaleCPP = async (paymentMethod, db, appId) => {
     const batch = writeBatch(db);
     for (const item of cart) {
       const productRef = doc(

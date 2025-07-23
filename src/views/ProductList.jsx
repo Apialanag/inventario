@@ -17,9 +17,7 @@ const ProductList = ({
   setSelectedProduct,
   handleDeleteProduct,
   showModal,
-  db,
   userId,
-  appId,
 }) => {
   // --- Estados ---
   const [searchTerm, setSearchTerm] = useState("");
@@ -99,6 +97,7 @@ const ProductList = ({
       showModal("El stock no puede ser negativo.", "error");
       return;
     }
+    const { db, appId } = await import("../firebase/config.jsx");
     const productRef = doc(
       db,
       `artifacts/${appId}/users/${userId}/products`,
@@ -148,6 +147,7 @@ const ProductList = ({
 
   const handleBulkImport = async (importedProducts) => {
     showModal(`Importando ${importedProducts.length} productos...`, "info");
+    const { db, appId } = await import("../firebase/config.jsx");
     const batch = writeBatch(db);
     importedProducts.forEach((product) => {
       const productRef = doc(
@@ -191,9 +191,7 @@ const ProductList = ({
       {viewingBatchesFor && (
         <BatchViewModal
           product={viewingBatchesFor}
-          db={db}
           userId={userId}
-          appId={appId}
           onClose={() => setViewingBatchesFor(null)}
         />
       )}
