@@ -12,8 +12,8 @@ import {
 } from "firebase/firestore";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
 import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
-// import { createWebpayTransaction } from "../services/transbankService.js";
-// import { createMercadoPagoPreference } from "../services/mercadoPagoService.js";
+import { createWebpayTransaction } from "../services/transbankService.js";
+import { createMercadoPagoPreference } from "../services/mercadoPagoService.js";
 
 const PointOfSale = ({
   products = [],
@@ -195,61 +195,61 @@ const PointOfSale = ({
     await batch.commit();
   };
 
-  // const handlePayWithTransbank = async () => {
-  //   if (cart.length === 0) {
-  //     showModal("El carrito está vacío.", "error");
-  //     return;
-  //   }
-  //   setIsProcessing(true);
-  //   try {
-  //     localStorage.setItem("pendingCart", JSON.stringify(cart));
-  //     const buyOrder = `bo_${Date.now()}`;
-  //     const sessionId = `sid_${userId.substring(0, 10)}`;
-  //     const amount = total.total;
-  //     const returnUrl = window.location.href.split("?")[0];
-  //     const paymentUrl = await createWebpayTransaction(
-  //       buyOrder,
-  //       sessionId,
-  //       amount,
-  //       returnUrl
-  //     );
-  //     window.location.href = paymentUrl;
-  //   } catch (error) {
-  //     localStorage.removeItem("pendingCart");
-  //     showModal(error.message, "error");
-  //   } finally {
-  //     setIsProcessing(false);
-  //   }
-  // };
+  const handlePayWithTransbank = async () => {
+    if (cart.length === 0) {
+      showModal("El carrito está vacío.", "error");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      localStorage.setItem("pendingCart", JSON.stringify(cart));
+      const buyOrder = `bo_${Date.now()}`;
+      const sessionId = `sid_${userId.substring(0, 10)}`;
+      const amount = total.total;
+      const returnUrl = window.location.href.split("?")[0];
+      const paymentUrl = await createWebpayTransaction(
+        buyOrder,
+        sessionId,
+        amount,
+        returnUrl
+      );
+      window.location.href = paymentUrl;
+    } catch (error) {
+      localStorage.removeItem("pendingCart");
+      showModal(error.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-  // const handlePayWithMercadoPago = async () => {
-  //   if (cart.length === 0) {
-  //     showModal("El carrito está vacío.", "error");
-  //     return;
-  //   }
-  //   setIsProcessing(true);
-  //   try {
-  //     const accessToken = settings?.posPrivateKey;
-  //     if (!accessToken) {
-  //       throw new Error(
-  //         "No has configurado tu Access Token de Mercado Pago en Ajustes."
-  //       );
-  //     }
-  //     localStorage.setItem("pendingCart", JSON.stringify(cart));
-  //     const returnUrl = window.location.href.split("?")[0];
-  //     const paymentUrl = await createMercadoPagoPreference(
-  //       cart,
-  //       returnUrl,
-  //       accessToken
-  //     );
-  //     window.location.href = paymentUrl;
-  //   } catch (error) {
-  //     localStorage.removeItem("pendingCart");
-  //     showModal(error.message, "error");
-  //   } finally {
-  //     setIsProcessing(false);
-  //   }
-  // };
+  const handlePayWithMercadoPago = async () => {
+    if (cart.length === 0) {
+      showModal("El carrito está vacío.", "error");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const accessToken = settings?.posPrivateKey;
+      if (!accessToken) {
+        throw new Error(
+          "No has configurado tu Access Token de Mercado Pago en Ajustes."
+        );
+      }
+      localStorage.setItem("pendingCart", JSON.stringify(cart));
+      const returnUrl = window.location.href.split("?")[0];
+      const paymentUrl = await createMercadoPagoPreference(
+        cart,
+        returnUrl,
+        accessToken
+      );
+      window.location.href = paymentUrl;
+    } catch (error) {
+      localStorage.removeItem("pendingCart");
+      showModal(error.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleCashSale = async () => {
     if (cart.length === 0) {
@@ -406,7 +406,7 @@ const PointOfSale = ({
                     >
                       Efectivo
                     </button>
-                    {/* <button
+                    <button
                       onClick={handlePayWithTransbank}
                       disabled={
                         isProcessing ||
@@ -427,7 +427,7 @@ const PointOfSale = ({
                       className="w-full py-3 bg-cyan-500 text-white rounded-lg disabled:bg-gray-400"
                     >
                       Mercado Pago
-                    </button> */}
+                    </button>
                   </>
                 )}
               </div>
