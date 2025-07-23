@@ -18,6 +18,8 @@ import { useAuth } from './hooks/useAuth.js';
 import Navbar from './components/Navbar.jsx';
 import ModalMessage from './components/ModalMessage.jsx';
 import AuthScreen from './views/AuthScreen.jsx';
+import DashboardSkeleton from './components/DashboardSkeleton.jsx';
+import ProductListSkeleton from './components/ProductListSkeleton.jsx';
 import Dashboard from './views/Dashboard.jsx';
 import ProductList from './views/ProductList.jsx';
 import ProductForm from './views/ProductForm.jsx';
@@ -214,9 +216,14 @@ const App = () => {
     }
 
     const renderContent = () => {
-        // Muestra un mensaje de carga mientras se obtienen los datos o la configuración
         if (dataLoading || settings === null) {
-            return <div className="text-center p-10 dark:text-gray-300">Cargando datos del inventario...</div>;
+            if (view === 'dashboard') {
+                return <DashboardSkeleton />;
+            }
+            if (view === 'products') {
+                return <ProductListSkeleton />;
+            }
+            return <div className="text-center p-10 dark:text-gray-300">Cargando datos...</div>;
         }
 
         if (dataError) {
