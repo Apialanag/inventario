@@ -1,49 +1,37 @@
 import React from "react";
+import { Link, useLocation } from "react-router-dom";
 
-// La Navbar ahora recibe la función onLogout
-const Navbar = ({ setView, currentView, onLogout }) => {
-  console.log("Renderizando Navbar. Vista actual:", currentView);
-  const getButtonClass = (viewName) => {
+const Navbar = ({ onLogout }) => {
+  const location = useLocation();
+
+  const getLinkClass = (path) => {
     const baseClass =
       "px-3 py-2 rounded-lg text-white font-medium text-base border border-transparent transition duration-200";
-    if (currentView === viewName) {
-      return `${baseClass} bg-blue-500`; // Estilo para el botón activo
+    if (location.pathname === path) {
+      return `${baseClass} bg-blue-500`; // Estilo para el enlace activo
     }
-    return `${baseClass} hover:bg-blue-600`; // Estilo para botones inactivos
+    return `${baseClass} hover:bg-blue-600`; // Estilo para enlaces inactivos
   };
 
   return (
     <nav className="bg-gradient-to-r from-blue-700 to-blue-900 p-3 shadow-lg sticky top-0 z-30">
       <div className="container mx-auto flex flex-wrap justify-between items-center">
-        <div className="text-white text-xl font-extrabold tracking-wide">
+        <Link to="/dashboard" className="text-white text-xl font-extrabold tracking-wide">
           🐝 Apialan Inventario
-        </div>
+        </Link>
         <div className="flex flex-wrap items-center space-x-1">
-          <button
-            onClick={() => setView("dashboard")}
-            className={getButtonClass("dashboard")}
-          >
+          <Link to="/dashboard" className={getLinkClass("/dashboard")}>
             Dashboard
-          </button>
-          <button
-            onClick={() => setView("pos")}
-            className={`${getButtonClass(
-              "pos"
-            )} bg-green-500 hover:bg-green-600`}
-          >
+          </Link>
+          <Link to="/pos" className={`${getLinkClass("/pos")} bg-green-500 hover:bg-green-600`}>
             Punto de Venta
-          </button>
-          <button
-            onClick={() => setView("products")}
-            className={getButtonClass("products")}
-          >
+          </Link>
+          <Link to="/products" className={getLinkClass("/products")}>
             Productos
-          </button>
-          <button
-            onClick={() => setView("suppliers")}
-            className={getButtonClass("suppliers")}
-          >
+          </Link>
+          <Link to="/suppliers" className={getLinkClass("/suppliers")}>
             Proveedores
+<<<<<<< HEAD
           </button>
           <button
             onClick={() => setView("purchase-orders")}
@@ -57,34 +45,24 @@ const Navbar = ({ setView, currentView, onLogout }) => {
             onClick={() => setView("adjust-stock")}
             className={getButtonClass("adjust-stock")}
           >
+=======
+          </Link>
+          <Link to="/stock-adjustment" className={getLinkClass("/stock-adjustment")}>
+>>>>>>> 177ab57e5b4310ac8c199d2d2148b4bbfda964cd
             Ajustar
-          </button>
-          <button
-            onClick={() => setView("movements")}
-            className={getButtonClass("movements")}
-          >
+          </Link>
+          <Link to="/movements" className={getLinkClass("/movements")}>
             Movimientos
-          </button>
-
-          <button
-            onClick={() => setView("reports")}
-            className={getButtonClass("reports")}
-          >
+          </Link>
+          <Link to="/reports" className={getLinkClass("/reports")}>
             Reportes
-          </button>
-          <button
-            onClick={() => setView("expiration-report")}
-            className={getButtonClass("expiration-report")}
-          >
+          </Link>
+          <Link to="/reports/expiration" className={getLinkClass("/reports/expiration")}>
             Control de Caducidad
-          </button>
-          <button
-            onClick={() => setView("settings")}
-            className={getButtonClass("settings")}
-          >
+          </Link>
+          <Link to="/settings" className={getLinkClass("/settings")}>
             Configuración
-          </button>
-
+          </Link>
           <button
             onClick={onLogout}
             className="px-3 py-2 rounded-lg text-white font-medium text-base bg-red-500 hover:bg-red-600 transition"

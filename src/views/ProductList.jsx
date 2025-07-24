@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { doc, updateDoc, writeBatch, collection } from "firebase/firestore";
 import { unparse } from "papaparse";
 
@@ -244,12 +245,12 @@ const ProductList = ({
             >
               Exportar CSV
             </button>
-            <button
-              onClick={() => setView("add-product")}
+            <Link
+              to="add"
               className="px-4 py-2 bg-blue-600 text-white rounded-md"
             >
               + Añadir
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -320,15 +321,13 @@ const ProductList = ({
                         Ver Lotes
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        setSelectedProduct(product);
-                        setView("edit-product");
-                      }}
+                    <Link
+                      to={`edit/${product.id}`}
+                      onClick={() => setSelectedProduct(product)}
                       className="text-blue-600 hover:underline mr-4"
                     >
                       Editar
-                    </button>
+                    </Link>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
                       className="text-red-600 hover:underline"
