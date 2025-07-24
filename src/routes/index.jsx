@@ -1,46 +1,140 @@
-import React, { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+// src/routes/index.jsx
 
-import Dashboard from '../views/Dashboard';
-import ProductList from '../views/ProductList';
-import ProductForm from '../views/ProductForm';
-import StockAdjustment from '../views/StockAdjustment';
-import MovementHistory from '../views/MovementHistory';
-import Reports from '../views/Reports';
-import Settings from '../views/Settings';
-import Suppliers from '../views/Suppliers';
-import ExpirationReport from '../views/ExpirationReport';
-import ProductsLayout from '../views/ProductsLayout';
+import React, { lazy, Suspense } from "react";
+import { Routes, Route } from "react-router-dom";
 
-const PointOfSale = lazy(() => import('../views/PointOfSale'));
+// --- Vistas ---
+import Dashboard from "../views/Dashboard.jsx";
+import ProductList from "../views/ProductList.jsx";
+import ProductForm from "../views/ProductForm.jsx";
+import Suppliers from "../views/Suppliers.jsx";
+import Reports from "../views/Reports.jsx";
+import MovementHistory from "../views/MovementHistory.jsx";
+import Settings from "../views/Settings.jsx";
+import StockAdjustment from "../views/StockAdjustment.jsx";
+import ExpirationReport from "../views/ExpirationReport.jsx";
+import ProductsLayout from "../views/ProductsLayout.jsx"; // Layout para rutas de productos
+
+// --- Skeletons ---
+import DashboardSkeleton from "../components/DashboardSkeleton.jsx";
+import ProductListSkeleton from "../components/ProductListSkeleton.jsx";
+import ReportsSkeleton from "../components/ReportsSkeleton.jsx";
+import PointOfSaleSkeleton from "../components/PointOfSaleSkeleton.jsx";
+import GenericViewSkeleton from "../components/GenericViewSkeleton.jsx"; // Fallback
+
+// Carga perezosa para componentes más pesados
+const PointOfSale = lazy(() => import("../views/PointOfSale.jsx"));
 
 const AppRoutes = (props) => {
-  // Objeto de props comunes para pasar a todos los componentes de las vistas
-  const commonProps = {
-    ...props,
-    setView: () => {}, // Esta función será reemplazada por la navegación de react-router-dom
-    onBack: () => window.history.back(),
-  };
+  // Desestructuramos las props, incluyendo el estado de carga
+  const {
+    isLoading,
+    products,
+    movements,
+    categories,
+    suppliers,
+    settings,
+    handleDeleteProduct,
+    handleAddProduct,
+    handleUpdateProduct,
+  } = props;
 
-  return (
-    <Suspense fallback={<div className="text-center p-10 dark:text-gray-300">Cargando...</div>}>
+  // Si está cargando, mostramos los skeletons específicos por ruta
+  if (isLoading) {
+    return (
       <Routes>
-        <Route path="/" element={<Dashboard {...commonProps} movements={props.movements} />} />
-        <Route path="/dashboard" element={<Dashboard {...commonProps} movements={props.movements} />} />
-        <Route path="/pos" element={<PointOfSale {...commonProps} />} />
-        <Route path="/products" element={<ProductsLayout />}>
-          <Route index element={<ProductList {...commonProps} categories={props.categories} setSelectedProduct={props.setSelectedProduct} handleDeleteProduct={props.handleDeleteProduct} />} />
-          <Route path="add" element={<ProductForm onSave={props.handleAddProduct} onCancel={() => window.history.back()} suppliers={props.suppliers} settings={props.settings} />} />
-          <Route path="edit/:productId" element={<ProductForm products={props.products} onSave={props.handleUpdateProduct} onCancel={() => window.history.back()} suppliers={props.suppliers} settings={props.settings} />} />
-        </Route>
-        <Route path="/stock-adjustment" element={<StockAdjustment {...commonProps} />} />
-        <Route path="/movements" element={<MovementHistory movements={props.movements} onBack={() => window.history.back()} />} />
-        <Route path="/reports" element={<Reports products={props.products} movements={props.moveodes} onBack={() => window.history.back()} />} />
-        <Route path="/reports/expiration" element={<ExpirationReport products={props.products} onBack={() => window.history.back()} />} />
-        <Route path="/settings" element={<Settings {...commonProps} />} />
-        <Route path="/suppliers" element={<Suppliers {...commonProps} suppliers={props.suppliers} />} />
+        <Route path="/" element={<DashboardSkeleton />} />
+        <Route path="/products" element={<ProductListSkeleton />} />
+        <Route path="/products/*" element={<ProductListSkeleton />} />
+        <Route path="/suppliers" element={<GenericViewSkeleton />} />
+        <Route path="/reports" element={<ReportsSkeleton />} />
+        <Route path="/reports/*" element={<ReportsSkeleton />} />
+        <Route path="/pos" element={<PointOfSaleSkeleton />} />
+        <Route path="/stock-adjustment" element={<GenericViewSkeleton />} />
+        <Route path="/movements" element={<GenericViewSkeleton />} />
+        <Route path="/settings" element={<GenericViewSkeleton />} />
+        {/* La ruta por defecto muestra el esqueleto del dashboard */}
+        <Route path="*" element={<DashboardSkeleton />} />
       </Routes>
-    </Suspense>
+    );
+  }
+
+  // Si no está cargando, mostramos los componentes reales
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={<Dashboard products={products} movements={movements} />}
+      />
+
+      {/* Rutas anidadas para Productos */}
+      <Route path="/products" element={<ProductsLayout />}>
+        <Route
+          index
+          element={
+            <ProductList
+              products={products}
+              categories={categories}
+              handleDeleteProduct={handleDeleteProduct}
+            />
+          }
+        />
+        <Route
+          path="add"
+          element={
+            <ProductForm
+              onSave={handleAddProduct}
+              suppliers={suppliers}
+              settings={settings}
+            />
+          }
+        />
+        <Route
+          path="edit/:productId"
+          element={
+            <ProductForm
+              onSave={handleUpdateProduct}
+              products={products}
+              suppliers={suppliers}
+              settings={settings}
+            />
+          }
+        />
+      </Route>
+
+      <Route path="/suppliers" element={<Suppliers {...props} />} />
+      <Route
+        path="/reports"
+        element={<Reports products={products} movements={movements} />}
+      />
+      <Route
+        path="/reports/expiration"
+        element={<ExpirationReport products={products} />}
+      />
+      <Route
+        path="/movements"
+        element={<MovementHistory movements={movements} />}
+      />
+      <Route path="/settings" element={<Settings {...props} />} />
+      <Route
+        path="/stock-adjustment"
+        element={<StockAdjustment {...props} />}
+      />
+
+      <Route
+        path="/pos"
+        element={
+          <Suspense fallback={<PointOfSaleSkeleton />}>
+            <PointOfSale {...props} />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="*"
+        element={<Dashboard products={products} movements={movements} />}
+      />
+    </Routes>
   );
 };
 
