@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
 import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 
-// El formulario ahora recibe la lista de 'suppliers' como una prop
 const ProductForm = ({
-  productToEdit,
+  products = [],
   onSave,
   onCancel,
   showModal,
   suppliers = [],
 }) => {
+  const { productId } = useParams();
+  const productToEdit = productId ? products.find(p => p.id === productId) : null;
+
   const initialState = {
     name: "",
     description: "",
@@ -33,8 +36,6 @@ const ProductForm = ({
   const [formData, setFormData] = useState(initialState);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
-  // --- Lógica de Escáner Físico ---
-  // Cuando se escanea un código, se establece en el campo 'barcode' del formulario.
   useBarcodeReader((barcode) => {
     setFormData((prev) => ({ ...prev, barcode }));
   });
@@ -50,7 +51,6 @@ const ProductForm = ({
   const handleScanSuccess = (decodedText) => {
     setIsScannerOpen(false);
     setFormData((prev) => ({ ...prev, barcode: decodedText }));
-    showModal(`Código de barras escaneado: ${decodedText}`, "info");
   };
 
   const handleChange = (e) => {
@@ -68,10 +68,10 @@ const ProductForm = ({
       return;
     }
 
-    // --- LÓGICA PARA CPP ---
-    // Si estamos creando un producto nuevo, calculamos su valor de stock inicial.
     let dataToSave = { ...formData };
-    if (!productToEdit) {
+    if (productToEdit) {
+      dataToSave.id = productToEdit.id;
+    } else {
       const valorTotalDelStock =
         (parseFloat(formData.purchasePrice) || 0) *
         (parseInt(formData.stock, 10) || 0);
