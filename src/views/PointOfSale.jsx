@@ -15,26 +15,35 @@ import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 import { createWebpayTransaction } from "../services/transbankService.js";
 import { createMercadoPagoPreference } from "../services/mercadoPagoService.js";
 
-const PointOfSale = ({
-  products = [],
-  userId,
-  db,
-  appId,
-  showModal,
-  onBack,
-}) => {
+const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
   const [cart, setCart] = useState([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [settings, setSettings] = useState(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [posSearchTerm, setPosSearchTerm] = useState("");
 
-  // --- Lógica de Escáner Físico ---
+  const filteredProducts = useMemo(() => {
+    if (!posSearchTerm) {
+      return [];
+    }
+    const lowerCaseSearch = posSearchTerm.toLowerCase();
+    return products
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(lowerCaseSearch) ||
+          (p.sku && p.sku.toLowerCase().includes(lowerCaseSearch)) ||
+          (p.category && p.category.toLowerCase().includes(lowerCaseSearch))
+      )
+      .slice(0, 5); // Limitar a 5 resultados para no saturar la UI
+  }, [posSearchTerm, products]);
+
   useBarcodeReader(handleScanSuccess);
 
   useEffect(() => {
     const fetchSettings = async () => {
       setLoadingSettings(true);
+      const { db, appId } = await import("../firebase/config.jsx");
       const settingsRef = doc(
         db,
         `artifacts/${appId}/users/${userId}/settings`,
@@ -49,9 +58,8 @@ const PointOfSale = ({
       setLoadingSettings(false);
     };
     fetchSettings();
-  }, [db, userId, appId]);
+  }, [userId]);
 
-  // --- Lógica del Carrito y Escáner ---
   const addProductToCart = (product) => {
     if (!product) return;
     const productInCart = cart.find((item) => item.id === product.id);
@@ -72,8 +80,10 @@ const PointOfSale = ({
       setCart([...cart, { ...product, quantity: 1 }]);
     }
   };
+
   const removeFromCart = (productId) =>
     setCart(cart.filter((item) => item.id !== productId));
+
   const updateQuantity = (productId, newQuantity) => {
     const product = products.find((p) => p.id === productId);
     if (newQuantity > product.stock) {
@@ -90,30 +100,32 @@ const PointOfSale = ({
       );
     }
   };
-  const handleScanSuccess = (decodedText) => {
+
+  function handleScanSuccess(decodedText) {
     const foundProduct = products.find((p) => p.barcode === decodedText);
     if (foundProduct) {
       addProductToCart(foundProduct);
     } else {
       showModal(`Producto con código ${decodedText} no encontrado.`, "error");
     }
-  };
-  const handleManualAdd = (productId) => {
-    if (!productId) return;
-    const foundProduct = products.find((p) => p.id === productId);
-    addProductToCart(foundProduct);
+  }
+
+  const handleManualAdd = (product) => {
+    if (!product) return;
+    addProductToCart(product);
+    setPosSearchTerm(""); // Limpiar la búsqueda después de añadir
   };
 
-  // --- Lógica para Finalizar la Venta ---
   const processSale = async (paymentMethod) => {
+    const { db, appId } = await import("../firebase/config.jsx");
     if (settings.inventoryMethod === "fifo") {
-      await processSaleFIFO(paymentMethod);
+      await processSaleFIFO(paymentMethod, db, appId);
     } else {
-      await processSaleCPP(paymentMethod);
+      await processSaleCPP(paymentMethod, db, appId);
     }
   };
 
-  const processSaleFIFO = async (paymentMethod) => {
+  const processSaleFIFO = async (paymentMethod, db, appId) => {
     const batch = writeBatch(db);
     for (const item of cart) {
       let quantityToDeduct = item.quantity;
@@ -162,7 +174,7 @@ const PointOfSale = ({
     await batch.commit();
   };
 
-  const processSaleCPP = async (paymentMethod) => {
+  const processSaleCPP = async (paymentMethod, db, appId) => {
     const batch = writeBatch(db);
     for (const item of cart) {
       const productRef = doc(
@@ -314,24 +326,33 @@ const PointOfSale = ({
               <span className="flex-shrink mx-4 text-gray-400">o</span>
               <div className="flex-grow border-t"></div>
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium mb-1">
-                Seleccionar de la lista
+                Buscar por Nombre, SKU o Categoría
               </label>
-              <select
-                onChange={(e) => handleManualAdd(e.target.value)}
+              <input
+                type="text"
+                value={posSearchTerm}
+                onChange={(e) => setPosSearchTerm(e.target.value)}
+                placeholder="Ej: Jugo, BEB-01, Bebidas"
                 className="w-full p-2 border rounded-md"
-                value=""
-              >
-                <option value="" disabled>
-                  Elige un producto...
-                </option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id} disabled={p.stock <= 0}>
-                    {p.name} (Stock: {p.stock})
-                  </option>
-                ))}
-              </select>
+              />
+              {filteredProducts.length > 0 && (
+                <ul className="absolute z-10 w-full bg-white border rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
+                  {filteredProducts.map((p) => (
+                    <li
+                      key={p.id}
+                      onClick={() => handleManualAdd(p)}
+                      className="p-2 hover:bg-blue-100 cursor-pointer border-b"
+                    >
+                      <p className="font-semibold">{p.name}</p>
+                      <p className="text-sm text-gray-600">
+                        SKU: {p.sku || "N/A"} | Stock: {p.stock}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
           <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">

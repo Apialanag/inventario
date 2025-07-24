@@ -133,7 +133,7 @@ const SupplierFormModal = ({ supplier, onSave, onClose }) => {
 };
 
 // Componente principal de la vista de proveedores
-const Suppliers = ({ suppliers = [], db, userId, appId, showModal }) => {
+const Suppliers = ({ suppliers = [], userId, showModal }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
 
@@ -149,6 +149,7 @@ const Suppliers = ({ suppliers = [], db, userId, appId, showModal }) => {
 
   const handleSaveSupplier = async (supplierData) => {
     try {
+      const { db, appId } = await import("../firebase/config.jsx");
       if (selectedSupplier) {
         // Actualizar proveedor existente
         const supplierRef = doc(
@@ -181,6 +182,7 @@ const Suppliers = ({ suppliers = [], db, userId, appId, showModal }) => {
       "error",
       async () => {
         try {
+          const { db, appId } = await import("../firebase/config.jsx");
           await deleteDoc(
             doc(db, `artifacts/${appId}/users/${userId}/suppliers`, supplierId)
           );

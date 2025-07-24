@@ -45,6 +45,12 @@ const Navbar = ({ setView, currentView, onLogout }) => {
           >
             Proveedores
           </button>
+          <button
+            onClick={() => setView("purchase-orders")}
+            className={getButtonClass("purchase-orders")}
+          >
+            Órdenes de Compra
+          </button>
 
           {/* --- BOTONES RESTAURADOS --- */}
           <button

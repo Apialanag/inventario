@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { doc, updateDoc, collection, addDoc } from "firebase/firestore";
+import LowStockAlert from "../components/LowStockAlert.jsx";
 
 // El Dashboard recibe todos los datos y funciones que necesita como props.
 // Se añade un valor por defecto `[]` a `products` para evitar errores si el prop es undefined.
 const Dashboard = ({
   products = [],
   setView,
+  setSelectedProduct, // Añadimos esta prop
   showModal,
   closeModal,
   userId,
@@ -13,18 +15,18 @@ const Dashboard = ({
   appId,
 }) => {
   // --- Cálculos de Métricas ---
-  // Filtramos los productos para obtener las diferentes alertas.
-  // Con el valor por defecto, estos cálculos son seguros incluso si `products` no se ha cargado.
-
-  // Productos con stock por debajo o igual al umbral mínimo.
-  const lowStockProducts = products
-    .filter(
-      (product) =>
-        product.stock !== undefined &&
-        product.minStockThreshold !== undefined &&
-        product.stock <= product.minStockThreshold
-    )
-    .sort((a, b) => a.stock - b.stock);
+  const lowStockProducts = useMemo(
+    () =>
+      products
+        .filter(
+          (p) =>
+            p.stock !== undefined &&
+            p.minStockThreshold !== undefined &&
+            p.stock <= p.minStockThreshold
+        )
+        .sort((a, b) => a.stock - b.stock),
+    [products]
+  );
 
   // Productos con stock por encima o igual al umbral máximo (y que el umbral sea mayor a 0).
   const highStockProducts = products
@@ -171,25 +173,11 @@ const Dashboard = ({
 
       {/* --- Sección de Alertas --- */}
       <div className="mt-8 space-y-6">
-        {lowStockProducts.length > 0 && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-800 p-4 rounded-md shadow-md">
-            <h3 className="text-xl font-semibold mb-3">
-              🚨 Alerta: Productos con Stock Bajo
-            </h3>
-            <ul className="list-disc list-inside">
-              {lowStockProducts.map((product) => (
-                <li key={product.id} className="mb-1">
-                  <span className="font-medium">{product.name}</span> (
-                  {product.sku || "N/A"}) - Stock:{" "}
-                  <span className="font-bold text-red-700">
-                    {product.stock}
-                  </span>{" "}
-                  (Umbral: {product.minStockThreshold})
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <LowStockAlert
+          products={lowStockProducts}
+          setView={setView}
+          setSelectedProduct={setSelectedProduct}
+        />
 
         {highStockProducts.length > 0 && (
           <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md shadow-md">

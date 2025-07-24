@@ -6,9 +6,8 @@ import { unparse } from "papaparse";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
 import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 import BulkImportModal from "../components/BulkImportModal.jsx";
-import BatchViewModal from "../components/BatchViewModal.jsx"; // El nuevo modal para ver lotes
+import BatchViewModal from "../components/BatchViewModal.jsx";
 
-// La vista ahora recibe la configuración del usuario ('settings') para saber si mostrar el botón de lotes
 const ProductList = ({
   products = [],
   categories = [],
@@ -17,11 +16,8 @@ const ProductList = ({
   setSelectedProduct,
   handleDeleteProduct,
   showModal,
-  db,
   userId,
-  appId,
 }) => {
-  // --- Estados ---
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("Todas");
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -32,16 +28,12 @@ const ProductList = ({
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  // Nuevo estado para el modal de visualización de lotes
   const [viewingBatchesFor, setViewingBatchesFor] = useState(null);
 
-  // --- Lógica de Escáner Físico ---
-  // Cuando se escanea un código, se establece como término de búsqueda.
   useBarcodeReader((barcode) => {
     setSearchTerm(barcode);
   });
 
-  // --- Lógica de Filtrado, Ordenamiento y Paginación ---
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -87,7 +79,6 @@ const ProductList = ({
     setSortConfig({ key, direction });
   };
 
-  // --- Funciones de Interacción ---
   const handleScanSuccess = (decodedText) => {
     setIsScannerOpen(false);
     setSearchTerm(decodedText);
@@ -99,6 +90,7 @@ const ProductList = ({
       showModal("El stock no puede ser negativo.", "error");
       return;
     }
+    const { db, appId } = await import("../firebase/config.jsx");
     const productRef = doc(
       db,
       `artifacts/${appId}/users/${userId}/products`,
@@ -148,6 +140,7 @@ const ProductList = ({
 
   const handleBulkImport = async (importedProducts) => {
     showModal(`Importando ${importedProducts.length} productos...`, "info");
+    const { db, appId } = await import("../firebase/config.jsx");
     const batch = writeBatch(db);
     importedProducts.forEach((product) => {
       const productRef = doc(
@@ -191,9 +184,7 @@ const ProductList = ({
       {viewingBatchesFor && (
         <BatchViewModal
           product={viewingBatchesFor}
-          db={db}
           userId={userId}
-          appId={appId}
           onClose={() => setViewingBatchesFor(null)}
         />
       )}
@@ -321,7 +312,6 @@ const ProductList = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {/* El botón "Ver Lotes" solo aparece si el método es FIFO */}
                     {settings?.inventoryMethod === "fifo" && (
                       <button
                         onClick={() => setViewingBatchesFor(product)}

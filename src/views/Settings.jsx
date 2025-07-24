@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-const Settings = ({ db, userId, appId, showModal }) => {
+const Settings = ({ userId, showModal }) => {
   // Configuración del POS
   const [provider, setProvider] = useState("none");
   const [publicKey, setPublicKey] = useState("");
@@ -17,6 +17,7 @@ const Settings = ({ db, userId, appId, showModal }) => {
   useEffect(() => {
     const fetchSettings = async () => {
       setLoading(true);
+      const { db, appId } = await import("../firebase/config.jsx");
       const settingsRef = doc(
         db,
         `artifacts/${appId}/users/${userId}/settings`,
@@ -35,13 +36,14 @@ const Settings = ({ db, userId, appId, showModal }) => {
     };
 
     fetchSettings();
-  }, [db, userId, appId]);
+  }, [userId]);
 
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
 
     try {
+      const { db, appId } = await import("../firebase/config.jsx");
       const settingsRef = doc(
         db,
         `artifacts/${appId}/users/${userId}/settings`,

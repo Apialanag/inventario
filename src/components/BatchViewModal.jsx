@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
 
-const BatchViewModal = ({ product, db, userId, appId, onClose }) => {
+const BatchViewModal = ({ product, userId, onClose }) => {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -9,6 +9,7 @@ const BatchViewModal = ({ product, db, userId, appId, onClose }) => {
     const fetchBatches = async () => {
       setLoading(true);
       try {
+        const { db, appId } = await import("../firebase/config.jsx");
         const batchesRef = collection(
           db,
           `artifacts/${appId}/users/${userId}/products/${product.id}/batches`
@@ -31,7 +32,7 @@ const BatchViewModal = ({ product, db, userId, appId, onClose }) => {
     if (product) {
       fetchBatches();
     }
-  }, [product, db, userId, appId]);
+  }, [product, userId]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
