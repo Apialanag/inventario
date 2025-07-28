@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
 
 // --- Vistas ---
 import Dashboard from "../views/Dashboard.jsx";
@@ -39,6 +39,7 @@ const AppRoutes = (props) => {
     onAddProduct,
     onUpdateProduct,
   } = props;
+  const navigate = useNavigate();
 
   // Si está cargando, mostramos los skeletons específicos por ruta
   if (isLoading) {
@@ -99,7 +100,7 @@ const AppRoutes = (props) => {
       <Route path="/settings" element={<Settings {...props} />} />
       <Route
         path="/stock-adjustment"
-        element={<StockAdjustment {...props} />}
+        element={<StockAdjustment {...props} onBack={() => navigate(-1)} />}
       />
 
       <Route
