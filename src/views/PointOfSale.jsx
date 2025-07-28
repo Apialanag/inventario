@@ -1,64 +1,46 @@
-import React, { useState, useMemo, useEffect } from "react";
+// src/views/PointOfSale.jsx
+
+import React, { useState, useMemo } from "react";
 import {
   doc,
-  getDoc,
   writeBatch,
   collection,
-  getDocs,
-  query,
-  orderBy,
-  increment,
   addDoc,
+  increment,
 } from "firebase/firestore";
+// Importa las funciones necesarias para llamar a tu backend
+import { getFunctions, httpsCallable } from "firebase/functions";
+
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
 import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
-// import { createWebpayTransaction } from "../services/transbankService.js";
-// import { createMercadoPagoPreference } from "../services/mercadoPagoService.js";
 
-const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
+const PointOfSale = ({
+  products = [],
+  settings,
+  showModal,
+  db,
+  userId,
+  appId,
+}) => {
   const [cart, setCart] = useState([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [settings, setSettings] = useState(null);
-  const [loadingSettings, setLoadingSettings] = useState(true);
   const [posSearchTerm, setPosSearchTerm] = useState("");
 
   const filteredProducts = useMemo(() => {
-    if (!posSearchTerm) {
-      return [];
-    }
+    if (!posSearchTerm) return [];
     const lowerCaseSearch = posSearchTerm.toLowerCase();
     return products
       .filter(
         (p) =>
-          p.name.toLowerCase().includes(lowerCaseSearch) ||
-          (p.sku && p.sku.toLowerCase().includes(lowerCaseSearch)) ||
-          (p.category && p.category.toLowerCase().includes(lowerCaseSearch))
+          (p.name || "").toLowerCase().includes(lowerCaseSearch) ||
+          (p.sku || "").toLowerCase().includes(lowerCaseSearch) ||
+          (p.category || "").toLowerCase().includes(lowerCaseSearch)
       )
-      .slice(0, 5); // Limitar a 5 resultados para no saturar la UI
+      .slice(0, 5);
   }, [posSearchTerm, products]);
 
   useBarcodeReader(handleScanSuccess);
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      setLoadingSettings(true);
-      const { db, appId } = await import("../firebase/config.jsx");
-      const settingsRef = doc(
-        db,
-        `artifacts/${appId}/users/${userId}/settings`,
-        "app_config"
-      );
-      const docSnap = await getDoc(settingsRef);
-      if (docSnap.exists()) {
-        setSettings(docSnap.data());
-      } else {
-        setSettings({ inventoryMethod: "cpp", posProvider: "none" });
-      }
-      setLoadingSettings(false);
-    };
-    fetchSettings();
-  }, [userId]);
 
   const addProductToCart = (product) => {
     if (!product) return;
@@ -108,174 +90,83 @@ const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
     } else {
       showModal(`Producto con código ${decodedText} no encontrado.`, "error");
     }
+    setIsScannerOpen(false);
   }
 
   const handleManualAdd = (product) => {
-    if (!product) return;
     addProductToCart(product);
-    setPosSearchTerm(""); // Limpiar la búsqueda después de añadir
+    setPosSearchTerm("");
   };
 
   const processSale = async (paymentMethod) => {
-    const { db, appId } = await import("../firebase/config.jsx");
-    if (settings.inventoryMethod === "fifo") {
-      await processSaleFIFO(paymentMethod, db, appId);
-    } else {
-      await processSaleCPP(paymentMethod, db, appId);
-    }
-  };
-
-  const processSaleFIFO = async (paymentMethod, db, appId) => {
-    const batch = writeBatch(db);
-    for (const item of cart) {
-      let quantityToDeduct = item.quantity;
-      let costOfGoodsSold = 0;
-      const productRef = doc(
-        db,
-        `artifacts/${appId}/users/${userId}/products`,
-        item.id
-      );
-      const batchesRef = collection(db, productRef.path, "batches");
-      const q = query(batchesRef, orderBy("fechaCompra", "asc"));
-
-      const querySnapshot = await getDocs(q);
-      for (const batchDoc of querySnapshot.docs) {
-        if (quantityToDeduct <= 0) break;
-        const batchData = batchDoc.data();
-        const batchRef = doc(db, batchesRef.path, batchDoc.id);
-        const availableInBatch = batchData.cantidadRestante;
-        const deductAmount = Math.min(quantityToDeduct, availableInBatch);
-
-        costOfGoodsSold += deductAmount * batchData.precioCompraNeto;
-        batch.update(batchRef, { cantidadRestante: increment(-deductAmount) });
-        quantityToDeduct -= deductAmount;
-      }
-
-      if (quantityToDeduct > 0)
-        throw new Error(`Stock inconsistente para ${item.name}.`);
-
-      batch.update(productRef, { stock: increment(-item.quantity) });
-
-      const movementRef = doc(
-        collection(db, `artifacts/${appId}/users/${userId}/movements`)
-      );
-      batch.set(movementRef, {
-        productId: item.id,
-        productName: item.name,
-        date: new Date().toISOString(),
-        type: `Venta (${paymentMethod})`,
-        quantity: -item.quantity,
-        netAmount: item.salePrice * item.quantity,
-        ivaAmount: item.salePrice * item.quantity * 0.19,
-        totalAmount: item.salePrice * item.quantity * 1.19,
-        costOfGoodsSold: parseFloat(costOfGoodsSold.toFixed(2)),
-      });
-    }
-    await batch.commit();
-  };
-
-  const processSaleCPP = async (paymentMethod, db, appId) => {
-    const batch = writeBatch(db);
-    for (const item of cart) {
-      const productRef = doc(
-        db,
-        `artifacts/${appId}/users/${userId}/products`,
-        item.id
-      );
-      const currentAvgCost = (item.valorTotalDelStock || 0) / (item.stock || 1);
-      const costOfGoodsSold = currentAvgCost * item.quantity;
-      batch.update(productRef, {
-        stock: increment(-item.quantity),
-        valorTotalDelStock: increment(-costOfGoodsSold),
-      });
-
-      const movementRef = doc(
-        collection(db, `artifacts/${appId}/users/${userId}/movements`)
-      );
-      batch.set(movementRef, {
-        productId: item.id,
-        productName: item.name,
-        date: new Date().toISOString(),
-        type: `Venta (${paymentMethod})`,
-        quantity: -item.quantity,
-        netAmount: item.salePrice * item.quantity,
-        ivaAmount: item.salePrice * item.quantity * 0.19,
-        totalAmount: item.salePrice * item.quantity * 1.19,
-        costOfGoodsSold: parseFloat(costOfGoodsSold.toFixed(2)),
-      });
-    }
-    await batch.commit();
-  };
-
-  // const handlePayWithTransbank = async () => {
-  //   if (cart.length === 0) {
-  //     showModal("El carrito está vacío.", "error");
-  //     return;
-  //   }
-  //   setIsProcessing(true);
-  //   try {
-  //     localStorage.setItem("pendingCart", JSON.stringify(cart));
-  //     const buyOrder = `bo_${Date.now()}`;
-  //     const sessionId = `sid_${userId.substring(0, 10)}`;
-  //     const amount = total.total;
-  //     const returnUrl = window.location.href.split("?")[0];
-  //     const paymentUrl = await createWebpayTransaction(
-  //       buyOrder,
-  //       sessionId,
-  //       amount,
-  //       returnUrl
-  //     );
-  //     window.location.href = paymentUrl;
-  //   } catch (error) {
-  //     localStorage.removeItem("pendingCart");
-  //     showModal(error.message, "error");
-  //   } finally {
-  //     setIsProcessing(false);
-  //   }
-  // };
-
-  // const handlePayWithMercadoPago = async () => {
-  //   if (cart.length === 0) {
-  //     showModal("El carrito está vacío.", "error");
-  //     return;
-  //   }
-  //   setIsProcessing(true);
-  //   try {
-  //     const accessToken = settings?.posPrivateKey;
-  //     if (!accessToken) {
-  //       throw new Error(
-  //         "No has configurado tu Access Token de Mercado Pago en Ajustes."
-  //       );
-  //     }
-  //     localStorage.setItem("pendingCart", JSON.stringify(cart));
-  //     const returnUrl = window.location.href.split("?")[0];
-  //     const paymentUrl = await createMercadoPagoPreference(
-  //       cart,
-  //       returnUrl,
-  //       accessToken
-  //     );
-  //     window.location.href = paymentUrl;
-  //   } catch (error) {
-  //     localStorage.removeItem("pendingCart");
-  //     showModal(error.message, "error");
-  //   } finally {
-  //     setIsProcessing(false);
-  //   }
-  // };
-
-  const handleCashSale = async () => {
     if (cart.length === 0) {
       showModal("El carrito está vacío.", "error");
       return;
     }
     setIsProcessing(true);
     try {
-      await processSale("Efectivo");
+      const batch = writeBatch(db);
+      for (const item of cart) {
+        const productRef = doc(
+          db,
+          `artifacts/${appId}/users/${userId}/products`,
+          item.id
+        );
+        batch.update(productRef, { stock: increment(-item.quantity) });
+        const movementRef = doc(
+          collection(db, `artifacts/${appId}/users/${userId}/movements`)
+        );
+        batch.set(movementRef, {
+          productId: item.id,
+          productName: item.name,
+          date: new Date().toISOString(),
+          type: `Venta (${paymentMethod})`,
+          quantity: -item.quantity,
+          netAmount: (item.salePrice || 0) * item.quantity,
+          ivaAmount: (item.salePrice || 0) * item.quantity * 0.19,
+          totalAmount: (item.salePrice || 0) * item.quantity * 1.19,
+        });
+      }
+      await batch.commit();
       showModal("Venta registrada y stock actualizado.", "info");
       setCart([]);
     } catch (error) {
       showModal(`Error al registrar la venta: ${error.message}`, "error");
     } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Función para llamar a la Cloud Function de Mercado Pago
+  const handlePayWithMercadoPago = async () => {
+    if (cart.length === 0) {
+      showModal("El carrito está vacío.", "error");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      localStorage.setItem("pendingCart", JSON.stringify(cart));
+
+      const functions = getFunctions();
+      const createPreference = httpsCallable(
+        functions,
+        "createMercadoPagoPreference"
+      );
+
+      const response = await createPreference({
+        cart: cart,
+        returnUrl: window.location.href,
+      });
+
+      if (response.data && response.data.init_point) {
+        window.location.href = response.data.init_point;
+      } else {
+        throw new Error("No se recibió un link de pago válido.");
+      }
+    } catch (error) {
+      console.error("Error al procesar pago con Mercado Pago:", error);
+      localStorage.removeItem("pendingCart");
+      showModal(`Error al crear link de pago: ${error.message}`, "error");
       setIsProcessing(false);
     }
   };
@@ -302,29 +193,29 @@ const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
           onClose={() => setIsScannerOpen(false)}
         />
       )}
-      <div className="p-4 md:p-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">
+      <div className="p-4 md:p-8 dark:text-white">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2 text-center">
           Punto de Venta
         </h1>
-        <p className="text-center text-sm text-gray-500 mb-6">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
           Método de inventario activo:{" "}
           <span className="font-semibold uppercase">
             {settings?.inventoryMethod || "..."}
           </span>
         </p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow-md space-y-4">
+          <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md space-y-4">
             <h2 className="text-xl font-bold">Añadir Producto</h2>
             <button
               onClick={() => setIsScannerOpen(true)}
-              className="w-full flex items-center justify-center py-3 bg-blue-600 text-white rounded-lg"
+              className="w-full flex items-center justify-center py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
               Escanear
             </button>
             <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t"></div>
+              <div className="flex-grow border-t dark:border-gray-600"></div>
               <span className="flex-shrink mx-4 text-gray-400">o</span>
-              <div className="flex-grow border-t"></div>
+              <div className="flex-grow border-t dark:border-gray-600"></div>
             </div>
             <div className="relative">
               <label className="block text-sm font-medium mb-1">
@@ -335,18 +226,18 @@ const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
                 value={posSearchTerm}
                 onChange={(e) => setPosSearchTerm(e.target.value)}
                 placeholder="Ej: Jugo, BEB-01, Bebidas"
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
               />
               {filteredProducts.length > 0 && (
-                <ul className="absolute z-10 w-full bg-white border rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
+                <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
                   {filteredProducts.map((p) => (
                     <li
                       key={p.id}
                       onClick={() => handleManualAdd(p)}
-                      className="p-2 hover:bg-blue-100 cursor-pointer border-b"
+                      className="p-2 hover:bg-blue-100 dark:hover:bg-gray-600 cursor-pointer border-b dark:border-gray-600"
                     >
                       <p className="font-semibold">{p.name}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         SKU: {p.sku || "N/A"} | Stock: {p.stock}
                       </p>
                     </li>
@@ -355,7 +246,7 @@ const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
               )}
             </div>
           </div>
-          <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-bold mb-4">Carrito de Venta</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {cart.length === 0 ? (
@@ -366,11 +257,11 @@ const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
                 cart.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between border-b pb-2"
+                    className="flex items-center justify-between border-b dark:border-gray-700 pb-2"
                   >
                     <div>
                       <p className="font-semibold">{item.name}</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         ${(item.salePrice || 0).toLocaleString("es-CL")} (Neto)
                       </p>
                     </div>
@@ -381,7 +272,7 @@ const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
                         onChange={(e) =>
                           updateQuantity(item.id, parseInt(e.target.value, 10))
                         }
-                        className="w-16 text-center border rounded-md p-1"
+                        className="w-16 text-center border rounded-md p-1 dark:bg-gray-700 dark:border-gray-600"
                         min="1"
                         max={item.stock}
                       />
@@ -396,15 +287,17 @@ const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
                 ))
               )}
             </div>
-            <div className="mt-6 border-t pt-4 space-y-2">
+            <div className="mt-6 border-t dark:border-gray-700 pt-4 space-y-2">
               <div className="flex justify-between text-lg">
-                <span className="text-gray-600">Neto:</span>
+                <span className="text-gray-600 dark:text-gray-300">Neto:</span>
                 <span className="font-semibold">
                   ${total.net.toLocaleString("es-CL")}
                 </span>
               </div>
               <div className="flex justify-between text-lg">
-                <span className="text-gray-600">IVA (19%):</span>
+                <span className="text-gray-600 dark:text-gray-300">
+                  IVA (19%):
+                </span>
                 <span className="font-semibold">
                   ${total.iva.toLocaleString("es-CL")}
                 </span>
@@ -414,42 +307,31 @@ const PointOfSale = ({ products = [], userId, showModal, onBack }) => {
                 <span>${total.total.toLocaleString("es-CL")}</span>
               </div>
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
-                {loadingSettings ? (
-                  <p className="text-center col-span-3 text-gray-500">
-                    Cargando...
-                  </p>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleCashSale}
-                      disabled={isProcessing || cart.length === 0}
-                      className="w-full py-3 bg-green-600 text-white rounded-lg disabled:bg-gray-400"
-                    >
-                      Efectivo
-                    </button>
-                    {/* <button
-                      onClick={handlePayWithTransbank}
-                      disabled={
-                        isProcessing ||
-                        cart.length === 0 ||
-                        settings?.posProvider !== "transbank"
-                      }
-                      className="w-full py-3 bg-red-600 text-white rounded-lg disabled:bg-gray-400"
-                    >
-                      Transbank
-                    </button>
-                    <button
-                      onClick={handlePayWithMercadoPago}
-                      disabled={
-                        isProcessing ||
-                        cart.length === 0 ||
-                        settings?.posProvider !== "mercadopago"
-                      }
-                      className="w-full py-3 bg-cyan-500 text-white rounded-lg disabled:bg-gray-400"
-                    >
-                      Mercado Pago
-                    </button> */}
-                  </>
+                <button
+                  onClick={() => processSale("Efectivo")}
+                  disabled={isProcessing || cart.length === 0}
+                  className="w-full py-3 bg-green-600 text-white rounded-lg disabled:bg-gray-400 hover:bg-green-700 transition"
+                >
+                  Efectivo
+                </button>
+                {settings?.posProvider === "mercadopago" && (
+                  <button
+                    onClick={handlePayWithMercadoPago}
+                    disabled={isProcessing || cart.length === 0}
+                    className="w-full py-3 bg-cyan-500 text-white rounded-lg disabled:bg-gray-400 hover:bg-cyan-600 transition"
+                  >
+                    Mercado Pago
+                  </button>
+                )}
+                {settings?.posProvider === "transbank" && (
+                  <button
+                    /* onClick={handlePayWithTransbank} */ disabled={
+                      isProcessing || cart.length === 0
+                    }
+                    className="w-full py-3 bg-red-600 text-white rounded-lg disabled:bg-gray-400 hover:bg-red-700 transition"
+                  >
+                    Transbank
+                  </button>
                 )}
               </div>
             </div>

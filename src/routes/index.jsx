@@ -1,5 +1,3 @@
-// src/routes/index.jsx
-
 import React, { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 
@@ -13,20 +11,23 @@ import MovementHistory from "../views/MovementHistory.jsx";
 import Settings from "../views/Settings.jsx";
 import StockAdjustment from "../views/StockAdjustment.jsx";
 import ExpirationReport from "../views/ExpirationReport.jsx";
-import ProductsLayout from "../views/ProductsLayout.jsx"; // Layout para rutas de productos
+import ProductsLayout from "../views/ProductsLayout.jsx";
+import PurchaseOrders from "../views/PurchaseOrders.jsx";
+import PurchaseOrderForm from "../views/PurchaseOrderForm.jsx";
+// --- Se importa el nuevo layout ---
+import PurchaseOrdersLayout from "../views/PurchaseOrdersLayout.jsx";
 
 // --- Skeletons ---
 import DashboardSkeleton from "../components/DashboardSkeleton.jsx";
 import ProductListSkeleton from "../components/ProductListSkeleton.jsx";
 import ReportsSkeleton from "../components/ReportsSkeleton.jsx";
 import PointOfSaleSkeleton from "../components/PointOfSaleSkeleton.jsx";
-import GenericViewSkeleton from "../components/GenericViewSkeleton.jsx"; // Fallback
+import GenericViewSkeleton from "../components/GenericViewSkeleton.jsx";
 
 // Carga perezosa para componentes más pesados
 const PointOfSale = lazy(() => import("../views/PointOfSale.jsx"));
 
 const AppRoutes = (props) => {
-  // Desestructuramos las props, incluyendo el estado de carga
   const {
     isLoading,
     products,
@@ -34,9 +35,9 @@ const AppRoutes = (props) => {
     categories,
     suppliers,
     settings,
-    handleDeleteProduct,
-    handleAddProduct,
-    handleUpdateProduct,
+    onDeleteProduct,
+    onAddProduct,
+    onUpdateProduct,
   } = props;
 
   // Si está cargando, mostramos los skeletons específicos por ruta
@@ -44,16 +45,15 @@ const AppRoutes = (props) => {
     return (
       <Routes>
         <Route path="/" element={<DashboardSkeleton />} />
-        <Route path="/products" element={<ProductListSkeleton />} />
         <Route path="/products/*" element={<ProductListSkeleton />} />
         <Route path="/suppliers" element={<GenericViewSkeleton />} />
-        <Route path="/reports" element={<ReportsSkeleton />} />
         <Route path="/reports/*" element={<ReportsSkeleton />} />
         <Route path="/pos" element={<PointOfSaleSkeleton />} />
         <Route path="/stock-adjustment" element={<GenericViewSkeleton />} />
         <Route path="/movements" element={<GenericViewSkeleton />} />
         <Route path="/settings" element={<GenericViewSkeleton />} />
-        {/* La ruta por defecto muestra el esqueleto del dashboard */}
+        {/* Skeleton para todas las rutas de órdenes */}
+        <Route path="/purchase-orders/*" element={<GenericViewSkeleton />} />
         <Route path="*" element={<DashboardSkeleton />} />
       </Routes>
     );
@@ -62,44 +62,25 @@ const AppRoutes = (props) => {
   // Si no está cargando, mostramos los componentes reales
   return (
     <Routes>
-      <Route
-        path="/"
-        element={<Dashboard products={products} movements={movements} />}
-      />
+      <Route path="/" element={<Dashboard {...props} />} />
 
       {/* Rutas anidadas para Productos */}
       <Route path="/products" element={<ProductsLayout />}>
-        <Route
-          index
-          element={
-            <ProductList
-              products={products}
-              categories={categories}
-              handleDeleteProduct={handleDeleteProduct}
-            />
-          }
-        />
+        <Route index element={<ProductList {...props} />} />
         <Route
           path="add"
-          element={
-            <ProductForm
-              onSave={handleAddProduct}
-              suppliers={suppliers}
-              settings={settings}
-            />
-          }
+          element={<ProductForm {...props} onSave={onAddProduct} />}
         />
         <Route
           path="edit/:productId"
-          element={
-            <ProductForm
-              onSave={handleUpdateProduct}
-              products={products}
-              suppliers={suppliers}
-              settings={settings}
-            />
-          }
+          element={<ProductForm {...props} onSave={onUpdateProduct} />}
         />
+      </Route>
+
+      {/* Rutas anidadas para Órdenes de Compra */}
+      <Route path="/purchase-orders" element={<PurchaseOrdersLayout />}>
+        <Route index element={<PurchaseOrders {...props} />} />
+        <Route path="add" element={<PurchaseOrderForm {...props} />} />
       </Route>
 
       <Route path="/suppliers" element={<Suppliers {...props} />} />
@@ -129,11 +110,7 @@ const AppRoutes = (props) => {
           </Suspense>
         }
       />
-
-      <Route
-        path="*"
-        element={<Dashboard products={products} movements={movements} />}
-      />
+      <Route path="*" element={<Dashboard {...props} />} />
     </Routes>
   );
 };

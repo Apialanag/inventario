@@ -1,35 +1,33 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { addDoc, collection } from "firebase/firestore";
+import { db, appId } from "../firebase/config.jsx";
 
-// Este es el formulario para crear o editar una orden de compra.
 const PurchaseOrderForm = ({
   products = [],
   suppliers = [],
   userId,
-  onBack,
   showModal,
-  setView,
 }) => {
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const navigate = useNavigate();
 
-  // Lógica de búsqueda de productos (similar a la del TPV)
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return [];
     const lowerCaseSearch = searchTerm.toLowerCase();
     return products
       .filter(
         (p) =>
-          p.name.toLowerCase().includes(lowerCaseSearch) ||
+          (p.name && p.name.toLowerCase().includes(lowerCaseSearch)) ||
           (p.sku && p.sku.toLowerCase().includes(lowerCaseSearch))
       )
       .slice(0, 5);
   }, [searchTerm, products]);
 
   const handleAddProduct = (product) => {
-    // Evitar añadir duplicados
     if (items.find((item) => item.productId === product.id)) {
       showModal("Este producto ya está en la orden.", "error");
       return;
@@ -77,16 +75,17 @@ const PurchaseOrderForm = ({
     }
     setIsSaving(true);
     try {
-      const { db, appId } = await import("../firebase/config.jsx");
       const supplierDoc = suppliers.find((s) => s.id === selectedSupplier);
 
       const orderData = {
         supplierId: supplierDoc.id,
         supplierName: supplierDoc.name,
-        creationDate: new Date().toISOString(),
+        // CORRECCIÓN: Usar 'date' en lugar de 'creationDate'
+        date: new Date().toISOString(),
         status: "Pendiente",
         items: items,
         totalAmount: totalAmount,
+        ivaAmount: totalAmount * 0.19, // Añadir IVA para consistencia
       };
 
       await addDoc(
@@ -95,7 +94,8 @@ const PurchaseOrderForm = ({
       );
 
       showModal("Orden de compra creada con éxito.", "info");
-      setView("purchase-orders"); // Regresar a la lista de órdenes
+      // CORRECCIÓN: Usar navigate para volver a la lista
+      navigate("/purchase-orders");
     } catch (error) {
       console.error("Error al guardar la orden:", error);
       showModal("Ocurrió un error al guardar la orden.", "error");
@@ -110,7 +110,6 @@ const PurchaseOrderForm = ({
         Nueva Orden de Compra
       </h1>
 
-      {/* Sección del Proveedor */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <label
           htmlFor="supplier-select"
@@ -135,7 +134,6 @@ const PurchaseOrderForm = ({
         </select>
       </div>
 
-      {/* Sección para añadir productos */}
       {selectedSupplier && (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
           <label
@@ -170,7 +168,6 @@ const PurchaseOrderForm = ({
         </div>
       )}
 
-      {/* Sección de la tabla de items */}
       {items.length > 0 && (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
           <h2 className="text-xl font-bold mb-4">
@@ -181,9 +178,11 @@ const PurchaseOrderForm = ({
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2 text-left">Producto</th>
-                  <th className="px-4 py-2 text-left">Cantidad</th>
-                  <th className="px-4 py-2 text-left">Costo Unitario (Neto)</th>
-                  <th className="px-4 py-2 text-left">Subtotal</th>
+                  <th className="px-4 py-2 text-center">Cantidad</th>
+                  <th className="px-4 py-2 text-right">
+                    Costo Unitario (Neto)
+                  </th>
+                  <th className="px-4 py-2 text-right">Subtotal</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
@@ -202,11 +201,11 @@ const PurchaseOrderForm = ({
                             e.target.value
                           )
                         }
-                        className="w-20 p-1 border rounded-md"
+                        className="w-20 p-1 border rounded-md text-center"
                         min="1"
                       />
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 text-right">
                       <input
                         type="number"
                         value={item.purchasePrice}
@@ -217,17 +216,17 @@ const PurchaseOrderForm = ({
                             e.target.value
                           )
                         }
-                        className="w-28 p-1 border rounded-md"
+                        className="w-28 p-1 border rounded-md text-right"
                         step="0.01"
                       />
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 text-right">
                       $
                       {(item.quantity * item.purchasePrice).toLocaleString(
                         "es-CL"
                       )}
                     </td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-2 text-center">
                       <button
                         onClick={() => handleRemoveItem(item.productId)}
                         className="text-red-500 hover:text-red-700"
@@ -243,7 +242,7 @@ const PurchaseOrderForm = ({
                   <td colSpan="3" className="px-4 py-2 text-right font-bold">
                     Total Orden:
                   </td>
-                  <td className="px-4 py-2 font-bold">
+                  <td className="px-4 py-2 font-bold text-right">
                     ${totalAmount.toLocaleString("es-CL")}
                   </td>
                   <td></td>
@@ -254,10 +253,9 @@ const PurchaseOrderForm = ({
         </div>
       )}
 
-      {/* Botones de acción */}
-      <div className="flex justify-end gap-4">
+      <div className="flex justify-end gap-4 mt-8">
         <button
-          onClick={onBack}
+          onClick={() => navigate("/purchase-orders")}
           className="px-6 py-2 bg-gray-300 rounded-md hover:bg-gray-400"
         >
           Cancelar
@@ -267,7 +265,7 @@ const PurchaseOrderForm = ({
           disabled={isSaving || items.length === 0 || !selectedSupplier}
           className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
         >
-          Guardar Orden
+          {isSaving ? "Guardando..." : "Guardar Orden"}
         </button>
       </div>
     </div>

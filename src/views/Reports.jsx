@@ -44,7 +44,7 @@ const renderCustomizedLabel = ({
   );
 };
 
-const Reports = ({ products = [], movements = [], onBack }) => {
+const Reports = ({ products = [], movements = [] }) => {
   // Estado para el mes y año seleccionados
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -58,27 +58,27 @@ const Reports = ({ products = [], movements = [], onBack }) => {
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
 
+    // Filtro principal para el IVA (Corregido)
     const monthlyMovements = movements.filter((mov) => {
-      const movDate = new Date(mov.date);
+      if (!mov || !mov.date) return false;
+      const movDate = mov.date.toDate ? mov.date.toDate() : new Date(mov.date);
+      if (isNaN(movDate.getTime())) return false;
       return movDate.getFullYear() === year && movDate.getMonth() === month;
     });
 
     // --- 1. Cálculo del IVA Mensual ---
     let totalDebitVat = 0;
     let totalCreditVat = 0;
-
     monthlyMovements.forEach((mov) => {
       if (mov.type.toLowerCase().includes("venta")) {
         totalDebitVat += mov.ivaAmount || 0;
       }
       if (mov.type.toLowerCase().includes("compra")) {
-        const product = products.find((p) => p.id === mov.productId);
-        if (product) {
-          const creditVat = (product.purchasePrice || 0) * mov.quantity * 0.19;
-          totalCreditVat += creditVat;
-        }
+        totalCreditVat += mov.ivaAmount || 0;
       }
     });
+
+    // --- CÁLCULOS PARA GRÁFICOS (con la corrección aplicada) ---
 
     // --- 2. Gráfico de Ventas (Top 5) ---
     const salesData = {};
@@ -93,17 +93,18 @@ const Reports = ({ products = [], movements = [], onBack }) => {
         const product = products.find((p) => p.id === productId);
         return {
           name: product ? product.name.substring(0, 15) : "N/A",
-          unidades: salesData[productId],
+          Unidades: salesData[productId],
         };
       })
-      .sort((a, b) => b.unidades - a.unidades)
+      .sort((a, b) => b.Unidades - a.Unidades)
       .slice(0, 5);
 
     // --- 3. Gráfico de Valor por Categoría ---
     const categoryValues = {};
     products.forEach((p) => {
       const value = (p.stock || 0) * (p.purchasePrice || 0);
-      categoryValues[p.category] = (categoryValues[p.category] || 0) + value;
+      const category = p.category || "Sin Categoría";
+      categoryValues[category] = (categoryValues[category] || 0) + value;
     });
     const categoryValueDistribution = Object.keys(categoryValues)
       .map((category) => ({
@@ -112,7 +113,7 @@ const Reports = ({ products = [], movements = [], onBack }) => {
       }))
       .filter((cat) => cat.value > 0);
 
-    // --- 4. NUEVO: Datos para Tendencia de Ventas vs. Compras (últimos 6 meses) ---
+    // --- 4. Datos para Tendencia de Ventas vs. Compras (últimos 6 meses) ---
     const salesVsPurchasesData = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
@@ -123,7 +124,13 @@ const Reports = ({ products = [], movements = [], onBack }) => {
       let monthlyPurchases = 0;
 
       movements.forEach((mov) => {
-        const movDate = new Date(mov.date);
+        // APLICANDO LA CORRECCIÓN AQUÍ TAMBIÉN
+        if (!mov || !mov.date) return;
+        const movDate = mov.date.toDate
+          ? mov.date.toDate()
+          : new Date(mov.date);
+        if (isNaN(movDate.getTime())) return;
+
         if (
           movDate.getFullYear() === d.getFullYear() &&
           movDate.getMonth() === d.getMonth()
@@ -131,10 +138,7 @@ const Reports = ({ products = [], movements = [], onBack }) => {
           if (mov.type.toLowerCase().includes("venta")) {
             monthlySales += mov.totalAmount || 0;
           } else if (mov.type.toLowerCase().includes("compra")) {
-            const product = products.find((p) => p.id === mov.productId);
-            if (product) {
-              monthlyPurchases += (product.purchasePrice || 0) * mov.quantity;
-            }
+            monthlyPurchases += mov.totalAmount || 0;
           }
         }
       });
@@ -145,7 +149,7 @@ const Reports = ({ products = [], movements = [], onBack }) => {
       });
     }
 
-    // --- 5. NUEVO: Datos para Valor de Stock vs. Ventas por Categoría ---
+    // --- 5. Datos para Valor de Stock vs. Ventas por Categoría ---
     const categoryPerformance = {};
     products.forEach((p) => {
       const category = p.category || "Sin Categoría";
@@ -265,7 +269,6 @@ const Reports = ({ products = [], movements = [], onBack }) => {
         </div>
       </div>
 
-      {/* Contenedor para los cuatro gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold text-gray-700 mb-4">
@@ -279,7 +282,7 @@ const Reports = ({ products = [], movements = [], onBack }) => {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="unidades" fill="#8884d8" name="Unidades" />
+                <Bar dataKey="Unidades" fill="#8884d8" name="Unidades" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -288,7 +291,6 @@ const Reports = ({ products = [], movements = [], onBack }) => {
             </p>
           )}
         </div>
-
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold text-gray-700 mb-4">
             Valor Inventario por Categoría
@@ -326,8 +328,6 @@ const Reports = ({ products = [], movements = [], onBack }) => {
             </p>
           )}
         </div>
-
-        {/* NUEVO GRÁFICO: Tendencia de Ventas vs. Compras */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold text-gray-700 mb-4">
             Tendencia de Ventas vs. Compras (6 meses)
@@ -356,8 +356,6 @@ const Reports = ({ products = [], movements = [], onBack }) => {
             </LineChart>
           </ResponsiveContainer>
         </div>
-
-        {/* NUEVO GRÁFICO: Valor de Stock vs. Ventas por Categoría */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold text-gray-700 mb-4">
             Rendimiento por Categoría (Mes)
@@ -380,15 +378,6 @@ const Reports = ({ products = [], movements = [], onBack }) => {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      <div className="mt-12 text-center">
-        <button
-          onClick={onBack}
-          className="px-6 py-3 bg-gray-600 text-white rounded-xl shadow-lg"
-        >
-          Volver
-        </button>
       </div>
     </div>
   );

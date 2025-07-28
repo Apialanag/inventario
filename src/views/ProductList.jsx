@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { doc, updateDoc, writeBatch, collection } from "firebase/firestore";
-import { unparse } from "papaparse";
+// src/views/ProductList.jsx
 
-// Importamos todos los componentes necesarios
+import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { unparse } from "papaparse";
+import { writeBatch, collection, doc } from "firebase/firestore";
 import BarcodeScanner from "../components/BarcodeScanner.jsx";
 import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 import BulkImportModal from "../components/BulkImportModal.jsx";
@@ -13,12 +13,14 @@ const ProductList = ({
   products = [],
   categories = [],
   settings,
-  setView,
-  setSelectedProduct,
-  handleDeleteProduct,
+  onUpdateProduct,
+  onDeleteProduct,
   showModal,
+  db,
   userId,
+  appId,
 }) => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("Todas");
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -28,18 +30,16 @@ const ProductList = ({
     direction: "ascending",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
   const [viewingBatchesFor, setViewingBatchesFor] = useState(null);
+  const itemsPerPage = 10;
 
-  useBarcodeReader((barcode) => {
-    setSearchTerm(barcode);
-  });
+  useBarcodeReader((barcode) => setSearchTerm(barcode));
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       const matchesSearch =
-        product.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (product.name || "").toLowerCase().includes(lowerCaseSearchTerm) ||
         (product.sku &&
           product.sku.toLowerCase().includes(lowerCaseSearchTerm)) ||
         (product.barcode && product.barcode.includes(searchTerm));
@@ -51,63 +51,44 @@ const ProductList = ({
 
   const sortedProducts = useMemo(() => {
     let sortableItems = [...filteredProducts];
-    if (sortConfig !== null) {
-      sortableItems.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === "ascending" ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === "ascending" ? 1 : -1;
-        }
-        return 0;
-      });
-    }
+    sortableItems.sort((a, b) => {
+      const valA = a[sortConfig.key] || "";
+      const valB = b[sortConfig.key] || "";
+      if (valA < valB) return sortConfig.direction === "ascending" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "ascending" ? 1 : -1;
+      return 0;
+    });
     return sortableItems;
   }, [filteredProducts, sortConfig]);
 
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return sortedProducts.slice(startIndex, startIndex + itemsPerPage);
-  }, [sortedProducts, currentPage, itemsPerPage]);
+  }, [sortedProducts, currentPage]);
 
   const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
 
   const requestSort = (key) => {
     let direction = "ascending";
-    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+    if (sortConfig.key === key && sortConfig.direction === "ascending")
       direction = "descending";
-    }
     setSortConfig({ key, direction });
   };
 
-  const handleScanSuccess = (decodedText) => {
-    setIsScannerOpen(false);
-    setSearchTerm(decodedText);
-  };
-
-  const handleQuickStockChange = async (product, amount) => {
+  const handleQuickStockChange = (product, amount) => {
     const newStock = (product.stock || 0) + amount;
     if (newStock < 0) {
       showModal("El stock no puede ser negativo.", "error");
       return;
     }
-    const { db, appId } = await import("../firebase/config.jsx");
-    const productRef = doc(
-      db,
-      `artifacts/${appId}/users/${userId}/products`,
-      product.id
-    );
-    try {
-      await updateDoc(productRef, { stock: newStock });
-    } catch (error) {
-      console.error("Error en ajuste rápido de stock:", error);
-      showModal("No se pudo actualizar el stock.", "error");
-    }
+    onUpdateProduct({ ...product, stock: newStock });
   };
 
   const exportToCSV = () => {
     const csv = unparse(products);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8;",
+    });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.setAttribute("download", "inventario_apialan.csv");
@@ -130,7 +111,9 @@ const ProductList = ({
       },
     ];
     const csv = unparse(templateData);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8;",
+    });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.setAttribute("download", "plantilla_importacion.csv");
@@ -141,7 +124,6 @@ const ProductList = ({
 
   const handleBulkImport = async (importedProducts) => {
     showModal(`Importando ${importedProducts.length} productos...`, "info");
-    const { db, appId } = await import("../firebase/config.jsx");
     const batch = writeBatch(db);
     importedProducts.forEach((product) => {
       const productRef = doc(
@@ -171,7 +153,10 @@ const ProductList = ({
     <>
       {isScannerOpen && (
         <BarcodeScanner
-          onScanSuccess={handleScanSuccess}
+          onScanSuccess={(text) => {
+            setIsScannerOpen(false);
+            setSearchTerm(text);
+          }}
           onClose={() => setIsScannerOpen(false)}
         />
       )}
@@ -185,29 +170,29 @@ const ProductList = ({
       {viewingBatchesFor && (
         <BatchViewModal
           product={viewingBatchesFor}
-          userId={userId}
           onClose={() => setViewingBatchesFor(null)}
+          {...{ db, userId, appId }}
         />
       )}
 
-      <div className="p-4 md:p-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">
+      <div className="p-4 md:p-8 dark:text-white">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">
           Listado de Productos
         </h1>
         <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
           <div className="flex-grow flex items-center space-x-2 md:max-w-xs">
             <input
               type="text"
-              placeholder="Buscar..."
+              placeholder="Buscar por Nombre, SKU o Código..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-md p-2 border"
+              className="w-full rounded-md p-2 border dark:bg-gray-700 dark:border-gray-600"
             />
             <button
               type="button"
               onClick={() => setIsScannerOpen(true)}
               className="p-2 bg-blue-500 text-white rounded-md"
-              title="Escanear"
+              title="Escanear Código de Barras"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -216,15 +201,19 @@ const ProductList = ({
                 viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <path d="M12 4v16m8-8H4" />
-                <path d="M3 9h18M3 15h18" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 4v16m8-8H4M3 9h18M3 15h18"
+                />
               </svg>
             </button>
           </div>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="rounded-md p-2 border"
+            className="rounded-md p-2 border dark:bg-gray-700 dark:border-gray-600"
           >
             {categories.map((cat) => (
               <option key={cat} value={cat}>
@@ -245,18 +234,18 @@ const ProductList = ({
             >
               Exportar CSV
             </button>
-            <Link
-              to="add"
+            <button
+              onClick={() => navigate("/products/add")}
               className="px-4 py-2 bg-blue-600 text-white rounded-md"
             >
               + Añadir
-            </Link>
+            </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto bg-white rounded-lg shadow-md">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100">
+        <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-md">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-100 dark:bg-gray-700">
               <tr>
                 <th
                   className="px-6 py-3 text-left text-xs font-medium uppercase cursor-pointer"
@@ -278,9 +267,12 @@ const ProductList = ({
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {paginatedProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50">
+                <tr
+                  key={product.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
                   <td className="px-6 py-4 whitespace-nowrap font-medium">
                     {product.name}
                   </td>
@@ -321,15 +313,14 @@ const ProductList = ({
                         Ver Lotes
                       </button>
                     )}
-                    <Link
-                      to={`edit/${product.id}`}
-                      onClick={() => setSelectedProduct(product)}
+                    <button
+                      onClick={() => navigate(`/products/edit/${product.id}`)}
                       className="text-blue-600 hover:underline mr-4"
                     >
                       Editar
-                    </Link>
+                    </button>
                     <button
-                      onClick={() => handleDeleteProduct(product.id)}
+                      onClick={() => onDeleteProduct(product.id)}
                       className="text-red-600 hover:underline"
                     >
                       Eliminar
@@ -342,21 +333,21 @@ const ProductList = ({
         </div>
 
         <div className="py-4 flex items-center justify-between">
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-gray-700 dark:text-gray-300">
             Página {currentPage} de {totalPages}
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 text-sm bg-white border rounded-md disabled:opacity-50"
+              className="px-4 py-2 text-sm bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md disabled:opacity-50"
             >
               Anterior
             </button>
             <button
               onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 text-sm bg-white border rounded-md disabled:opacity-50"
+              className="px-4 py-2 text-sm bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md disabled:opacity-50"
             >
               Siguiente
             </button>

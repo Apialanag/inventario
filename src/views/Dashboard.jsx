@@ -1,20 +1,22 @@
+// src/views/Dashboard.jsx
+
 import React, { useMemo } from "react";
-import { doc, updateDoc, collection, addDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 import LowStockAlert from "../components/LowStockAlert.jsx";
 
-// El Dashboard recibe todos los datos y funciones que necesita como props.
-// Se añade un valor por defecto `[]` a `products` para evitar errores si el prop es undefined.
+// Componente adaptado para recibir props del nuevo sistema de enrutamiento
 const Dashboard = ({
   products = [],
-  setView,
-  setSelectedProduct, // Añadimos esta prop
+  onUpdateProduct,
   showModal,
   closeModal,
-  userId,
   db,
+  userId,
   appId,
 }) => {
-  // --- Cálculos de Métricas ---
+  const navigate = useNavigate();
+
+  // --- CÁLCULOS DE MÉTRICAS (CORREGIDOS CON LOS NOMBRES DE CAMPO CORRECTOS) ---
   const lowStockProducts = useMemo(
     () =>
       products
@@ -28,141 +30,86 @@ const Dashboard = ({
     [products]
   );
 
-  // Productos con stock por encima o igual al umbral máximo (y que el umbral sea mayor a 0).
   const highStockProducts = products
     .filter(
-      (product) =>
-        product.stock !== undefined &&
-        product.maxStockThreshold !== undefined &&
-        product.stock >= product.maxStockThreshold &&
-        product.maxStockThreshold > 0
+      (p) =>
+        p.stock !== undefined &&
+        p.maxStockThreshold !== undefined &&
+        p.stock >= p.maxStockThreshold &&
+        p.maxStockThreshold > 0
     )
     .sort((a, b) => b.stock - a.stock);
 
-  // Productos que expiran en los próximos 30 días.
   const expiringProducts = products
-    .filter((product) => {
-      if (!product.expirationDate) return false;
-      const expirationDate = new Date(product.expirationDate);
+    .filter((p) => {
+      if (!p.expirationDate) return false;
+      const expiration = new Date(p.expirationDate);
       const today = new Date();
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(today.getDate() + 30);
-      // Asegurarse de que la fecha de expiración no haya pasado ya.
-      return expirationDate >= today && expirationDate <= thirtyDaysFromNow;
+      const thirtyDays = new Date(today.setDate(today.getDate() + 30));
+      return expiration >= new Date() && expiration <= thirtyDays;
     })
     .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
 
-  // Suma total de todas las unidades de stock.
   const totalStockUnits = products.reduce((sum, p) => sum + (p.stock || 0), 0);
-
-  // Valor total del inventario (Stock * Precio de Compra)
   const totalInventoryValue = products.reduce(
     (sum, p) => sum + (p.stock || 0) * (p.purchasePrice || 0),
     0
   );
 
-  // --- Funciones de Interacción ---
+  // --- FUNCIONES (ADAPTADAS) ---
+  const handleQuickSale = (product) => {
+    if (!product) return;
 
-  // Función para manejar una venta rápida desde el dashboard.
-  const handleQuickSale = async (productId, quantity = 1) => {
-    if (!productId) return; // No hacer nada si no se selecciona un producto.
-
-    const product = products.find((p) => p.id === productId);
-    if (!product) {
-      showModal("Producto no encontrado.", "error");
-      return;
-    }
-
-    if (product.stock < quantity) {
-      showModal(
-        `No hay suficiente stock para ${product.name}. Stock actual: ${product.stock}.`,
-        "error"
-      );
-      return;
-    }
-
-    const newStock = product.stock - quantity;
-
-    // Pedir confirmación al usuario antes de proceder.
     showModal(
-      `¿Confirmas la venta de ${quantity} unidad(es) de ${product.name}?`,
+      `¿Confirmas la venta de 1 unidad de ${product.name}?`,
       "info",
-      async () => {
-        try {
-          // 1. Actualizar el stock del producto
-          const productRef = doc(
-            db,
-            `artifacts/${appId}/users/${userId}/products`,
-            productId
-          );
-          await updateDoc(productRef, { stock: newStock });
-
-          // 2. Registrar el movimiento de inventario
-          const movementsCollectionRef = collection(
-            db,
-            `artifacts/${appId}/users/${userId}/movements`
-          );
-          await addDoc(movementsCollectionRef, {
-            productId: productId,
-            productName: product.name,
-            productSku: product.sku || "N/A",
-            date: new Date().toISOString(),
-            type: "Venta Rápida",
-            quantity: -quantity, // Las salidas se registran como negativas
-            notes: `Venta rápida desde el Dashboard`,
-          });
-
-          // Cierra el modal de confirmación primero
-          closeModal();
-          // Muestra el modal de éxito
-          showModal("Venta registrada y stock actualizado con éxito.", "info");
-        } catch (err) {
-          console.error("Error al registrar venta rápida:", err);
-          // Cierra el modal de confirmación en caso de error
-          closeModal();
-          showModal(
-            "Error al registrar la venta. Inténtalo de nuevo.",
-            "error"
-          );
+      () => {
+        // Aquí usamos la función onUpdateProduct que viene de App.jsx para mantener la lógica centralizada
+        const newStock = (product.stock || 0) - 1;
+        if (newStock < 0) {
+          showModal("No hay suficiente stock.", "error");
+          return;
         }
+        onUpdateProduct({ ...product, stock: newStock });
+        closeModal();
+        showModal("Venta rápida registrada.", "info");
       }
     );
   };
 
   return (
-    <div className="p-4 md:p-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+    <div className="p-4 md:p-8 dark:text-white">
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6 text-center">
         Panel de Control de Inventario
       </h1>
-
-      {/* --- Tarjetas de Métricas Principales --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-blue-100">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">
+        {/* Tarjetas de Métricas */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-blue-100 dark:border-blue-800">
+          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Total de Productos
           </h2>
           <p className="text-6xl font-extrabold text-blue-600">
             {products.length}
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-red-100">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-red-100 dark:border-red-800">
+          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Productos Stock Bajo
           </h2>
           <p className="text-6xl font-extrabold text-red-600">
             {lowStockProducts.length}
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-green-100">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-green-100 dark:border-green-800">
+          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Stock Total (Unidades)
           </h2>
           <p className="text-6xl font-extrabold text-green-600">
             {totalStockUnits}
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-purple-100">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-purple-100 dark:border-purple-800">
+          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Valor del Inventario
           </h2>
           <p className="text-4xl md:text-5xl font-extrabold text-purple-600">
@@ -173,47 +120,32 @@ const Dashboard = ({
 
       {/* --- Sección de Alertas --- */}
       <div className="mt-8 space-y-6">
-        <LowStockAlert
-          products={lowStockProducts}
-          setView={setView}
-          setSelectedProduct={setSelectedProduct}
-        />
+        <LowStockAlert products={lowStockProducts} navigate={navigate} />
 
         {highStockProducts.length > 0 && (
-          <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 p-4 rounded-md shadow-md">
+          <div className="bg-blue-50 dark:bg-gray-800 border-l-4 border-blue-500 text-blue-800 dark:text-blue-300 p-4 rounded-md shadow-md">
             <h3 className="text-xl font-semibold mb-3">
               📈 Notificación: Productos con Exceso de Stock
             </h3>
             <ul className="list-disc list-inside">
-              {highStockProducts.map((product) => (
-                <li key={product.id} className="mb-1">
-                  <span className="font-medium">{product.name}</span> (
-                  {product.sku || "N/A"}) - Stock:{" "}
-                  <span className="font-bold text-blue-700">
-                    {product.stock}
-                  </span>{" "}
-                  (Umbral Máx: {product.maxStockThreshold})
+              {highStockProducts.map((p) => (
+                <li key={p.id}>
+                  {p.name} - Stock: {p.stock} (Máx: {p.maxStockThreshold})
                 </li>
               ))}
             </ul>
           </div>
         )}
-
         {expiringProducts.length > 0 && (
-          <div className="bg-orange-50 border-l-4 border-orange-500 text-orange-800 p-4 rounded-md shadow-md">
+          <div className="bg-orange-50 dark:bg-gray-800 border-l-4 border-orange-500 text-orange-800 dark:text-orange-300 p-4 rounded-md shadow-md">
             <h3 className="text-xl font-semibold mb-3">
               ⏳ Alerta: Productos Próximos a Caducar
             </h3>
             <ul className="list-disc list-inside">
-              {expiringProducts.map((product) => (
-                <li key={product.id} className="mb-1">
-                  <span className="font-medium">{product.name}</span> (
-                  {product.sku || "N/A"}) - Caduca el:{" "}
-                  <span className="font-bold text-orange-700">
-                    {new Date(product.expirationDate).toLocaleDateString(
-                      "es-CL"
-                    )}
-                  </span>
+              {expiringProducts.map((p) => (
+                <li key={p.id}>
+                  {p.name} - Caduca el:{" "}
+                  {new Date(p.expirationDate).toLocaleDateString("es-CL")}
                 </li>
               ))}
             </ul>
@@ -221,45 +153,38 @@ const Dashboard = ({
         )}
       </div>
 
-      {/* --- Botones de Acciones Rápidas --- */}
+      {/* --- Botones de Acciones Rápidas (CORREGIDOS) --- */}
       <div className="mt-10 text-center flex flex-col sm:flex-row justify-center items-center gap-4 flex-wrap">
         <button
-          onClick={() => setView("add-product")}
-          className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-blue-900 transition duration-300 text-lg font-semibold transform hover:scale-105 active:scale-95"
+          onClick={() => navigate("/products/add")}
+          className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-blue-900 transition duration-300 text-lg font-semibold"
         >
           Añadir Nuevo Producto
         </button>
         <button
-          onClick={() => setView("adjust-stock")}
-          className="px-8 py-4 bg-gradient-to-r from-green-600 to-green-800 text-white rounded-xl shadow-lg hover:from-green-700 hover:to-green-900 transition duration-300 text-lg font-semibold transform hover:scale-105 active:scale-95"
+          onClick={() => navigate("/stock-adjustment")}
+          className="px-8 py-4 bg-gradient-to-r from-green-600 to-green-800 text-white rounded-xl shadow-lg hover:from-green-700 hover:to-green-900 transition duration-300 text-lg font-semibold"
         >
           Ajustar Stock
         </button>
-
-        {/* Dropdown para Venta Rápida */}
         {products.length > 0 && (
           <div className="relative group">
-            <button className="px-8 py-4 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-xl shadow-lg hover:from-purple-700 hover:to-purple-900 transition duration-300 text-lg font-semibold transform hover:scale-105 active:scale-95">
+            <button className="px-8 py-4 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-xl shadow-lg hover:from-purple-700 hover:to-purple-900 transition duration-300 text-lg font-semibold">
               Venta Rápida
             </button>
-            <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-64 p-3 bg-white rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-20">
-              <p className="text-sm font-semibold text-gray-800 mb-2 text-left">
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 bg-white dark:bg-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-20">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 text-left">
                 Vender 1 unidad de:
               </p>
-              <select
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 text-gray-800"
-                onChange={(e) => handleQuickSale(e.target.value)}
-                defaultValue=""
-              >
-                <option value="" disabled>
-                  Selecciona un producto...
-                </option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
+              {products.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => handleQuickSale(p)}
+                  className="text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
+                >
+                  {p.name}
+                </div>
+              ))}
             </div>
           </div>
         )}
