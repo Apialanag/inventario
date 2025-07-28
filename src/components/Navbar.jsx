@@ -16,13 +16,13 @@ const Navbar = ({ onLogout, theme, toggleTheme }) => {
       location.pathname === path ||
       (path !== "/" && location.pathname.startsWith(path))
     ) {
-      return `${baseClass} bg-blue-500/80`; // Estilo para el enlace activo
+      return `${baseClass} bg-blue-600`; // Estilo para el enlace activo
     }
     return `${baseClass} hover:bg-white/20`; // Estilo para enlaces inactivos
   };
 
   return (
-    <nav className="bg-gradient-to-r from-gray-800 to-gray-900 dark:from-blue-700 dark:to-blue-900 p-3 shadow-lg sticky top-0 z-50">
+    <nav className="bg-gray-800 dark:bg-gray-900 p-3 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto flex flex-wrap justify-between items-center">
         <Link to="/" className="text-white text-xl font-bold tracking-wider">
           🐝 Apialan Inventario

@@ -84,7 +84,7 @@ const Dashboard = ({
       </h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Tarjetas de Métricas */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-blue-100 dark:border-blue-800">
+        <div className="bg-white dark:bg-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center">
           <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Total de Productos
           </h2>
@@ -92,7 +92,7 @@ const Dashboard = ({
             {products.length}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-red-100 dark:border-red-800">
+        <div className="bg-white dark:bg-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center">
           <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Productos Stock Bajo
           </h2>
@@ -100,7 +100,7 @@ const Dashboard = ({
             {lowStockProducts.length}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-green-100 dark:border-green-800">
+        <div className="bg-white dark:bg-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center">
           <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Stock Total (Unidades)
           </h2>
@@ -108,7 +108,7 @@ const Dashboard = ({
             {totalStockUnits}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center border border-purple-100 dark:border-purple-800">
+        <div className="bg-white dark:bg-gray-700 rounded-xl shadow-lg p-6 text-center flex flex-col items-center justify-center">
           <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             Valor del Inventario
           </h2>
@@ -157,19 +157,19 @@ const Dashboard = ({
       <div className="mt-10 text-center flex flex-col sm:flex-row justify-center items-center gap-4 flex-wrap">
         <button
           onClick={() => navigate("/products/add")}
-          className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-blue-900 transition duration-300 text-lg font-semibold"
+          className="px-8 py-4 bg-blue-700 text-white rounded-xl shadow-lg hover:bg-blue-800 transition duration-300 text-lg font-semibold"
         >
           Añadir Nuevo Producto
         </button>
         <button
           onClick={() => navigate("/stock-adjustment")}
-          className="px-8 py-4 bg-gradient-to-r from-green-600 to-green-800 text-white rounded-xl shadow-lg hover:from-green-700 hover:to-green-900 transition duration-300 text-lg font-semibold"
+          className="px-8 py-4 bg-green-700 text-white rounded-xl shadow-lg hover:bg-green-800 transition duration-300 text-lg font-semibold"
         >
           Ajustar Stock
         </button>
         {products.length > 0 && (
           <div className="relative group">
-            <button className="px-8 py-4 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-xl shadow-lg hover:from-purple-700 hover:to-purple-900 transition duration-300 text-lg font-semibold">
+            <button className="px-8 py-4 bg-purple-700 text-white rounded-xl shadow-lg hover:bg-purple-800 transition duration-300 text-lg font-semibold">
               Venta Rápida
             </button>
             <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 bg-white dark:bg-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-20">
