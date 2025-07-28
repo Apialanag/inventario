@@ -103,6 +103,9 @@ const App = () => {
     categories,
     suppliers,
     settings,
+    db,
+    appId,
+    userId: user?.uid,
     // Pasamos las funciones CRUD y de modales a través de las props
     onAddProduct: (newProduct) =>
       handleAddProduct(newProduct, user.uid, showModal, navigate),
