@@ -19,9 +19,9 @@ export const useInventory = (userId) => {
     setLoading(true);
 
     const paths = {
-      products: `artifacts/apialaninventarioapp/users/${userId}/products`,
-      movements: `artifacts/apialaninventarioapp/users/${userId}/movements`,
-      suppliers: `artifacts/apialaninventarioapp/users/${userId}/suppliers`,
+      products: `artifacts/${appId}/users/${userId}/products`,
+      movements: `artifacts/${appId}/users/${userId}/movements`,
+      suppliers: `artifacts/${appId}/users/${userId}/suppliers`,
     };
 
     const unsubProducts = onSnapshot(
