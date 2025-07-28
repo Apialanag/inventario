@@ -16,6 +16,7 @@ import {
   Line,
 } from "recharts";
 import { unparse } from "papaparse"; // Importamos la función para crear el CSV
+import { useData } from "../context/DataContext.jsx";
 
 // Componente para la etiqueta personalizada de la leyenda del gráfico de torta
 const renderCustomizedLabel = ({
@@ -44,7 +45,8 @@ const renderCustomizedLabel = ({
   );
 };
 
-const Reports = ({ products = [], movements = [] }) => {
+const Reports = () => {
+  const { products, movements } = useData();
   // Estado para el mes y año seleccionados
   const [selectedDate, setSelectedDate] = useState(new Date());
 

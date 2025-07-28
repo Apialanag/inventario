@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
+import { useData } from '../context/DataContext';
 
-const ExpirationReport = ({ products = [], onBack }) => {
+const ExpirationReport = ({ onBack }) => {
+  const { products } = useData();
   const expiringProducts = useMemo(() => {
     const today = new Date();
     // Normalizamos 'today' a medianoche para evitar problemas con las horas.

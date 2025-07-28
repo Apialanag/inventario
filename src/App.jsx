@@ -13,6 +13,7 @@ import ModalMessage from "./components/ModalMessage.jsx";
 import AuthScreen from "./views/AuthScreen.jsx";
 import GenericViewSkeleton from "./components/GenericViewSkeleton.jsx";
 import AppRoutes from "./routes/index.jsx";
+import { DataProvider } from "./context/DataContext.jsx";
 
 // --- Funciones CRUD (Estas se pueden mover a su propio hook más adelante) ---
 import {
@@ -133,7 +134,11 @@ const App = () => {
         )}
 
         {/* El componente de rutas renderiza la vista correcta o su esqueleto */}
-        {!dataError && <AppRoutes {...routeProps} />}
+        {!dataError && (
+          <DataProvider>
+            <AppRoutes {...routeProps} />
+          </DataProvider>
+        )}
       </main>
 
       {/* El modal también es parte del layout principal */}

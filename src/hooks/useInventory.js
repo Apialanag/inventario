@@ -6,7 +6,6 @@ import { db, appId } from "../firebase/config.jsx";
 export const useInventory = (userId) => {
   const [products, setProducts] = useState([]);
   const [movements, setMovements] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,10 +28,6 @@ export const useInventory = (userId) => {
       (snap) => {
         const productList = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setProducts(productList);
-        const uniqueCategories = [
-          ...new Set(productList.map((p) => p.category).filter(Boolean)),
-        ];
-        setCategories(["Todas", ...uniqueCategories]);
         setLoading(false);
       },
       (err) => {
@@ -73,5 +68,5 @@ export const useInventory = (userId) => {
     };
   }, [userId]);
 
-  return { products, movements, categories, suppliers, loading, error };
+  return { products, movements, suppliers, loading, error };
 };

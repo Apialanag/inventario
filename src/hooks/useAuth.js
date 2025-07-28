@@ -25,8 +25,7 @@ export const useAuth = () => {
     setError(null);
 
     // --- Verificación del Código Secreto ---
-    // Puedes cambiar este código por el que prefieras.
-    const SECRET_INVITATION_CODE = "Apialan2025";
+    const SECRET_INVITATION_CODE = import.meta.env.VITE_INVITATION_CODE;
 
     if (invitationCode !== SECRET_INVITATION_CODE) {
       setError("El código de invitación no es válido.");

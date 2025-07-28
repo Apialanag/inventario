@@ -8,10 +8,9 @@ import BarcodeScanner from "../components/BarcodeScanner.jsx";
 import { useBarcodeReader } from "../hooks/useBarcodeReader.js";
 import BulkImportModal from "../components/BulkImportModal.jsx";
 import BatchViewModal from "../components/BatchViewModal.jsx";
+import { useData } from "../context/DataContext.jsx";
 
 const ProductList = ({
-  products = [],
-  categories = [],
   settings,
   onUpdateProduct,
   onDeleteProduct,
@@ -21,6 +20,7 @@ const ProductList = ({
   appId,
 }) => {
   const navigate = useNavigate();
+  const { products } = useData();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("Todas");
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -32,6 +32,11 @@ const ProductList = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [viewingBatchesFor, setViewingBatchesFor] = useState(null);
   const itemsPerPage = 10;
+
+  const categories = [
+    "Todas",
+    ...new Set(products.map((p) => p.category).filter(Boolean)),
+  ];
 
   useBarcodeReader((barcode) => setSearchTerm(barcode));
 

@@ -1,7 +1,9 @@
 import React from "react";
 import { unparse } from "papaparse"; // Importamos la función para crear el CSV
+import { useData } from "../context/DataContext.jsx";
 
-const MovementHistory = ({ movements = [], onBack }) => {
+const MovementHistory = ({ onBack }) => {
+  const { movements } = useData();
   const exportToCSV = () => {
     // Formateamos los datos para que sean más legibles en el CSV
     const dataToExport = movements.map((mov) => ({

@@ -5,8 +5,9 @@ import { useNavigate } from "react-router-dom";
 import LowStockAlert from "../components/LowStockAlert.jsx";
 
 // Componente adaptado para recibir props del nuevo sistema de enrutamiento
+import { useData } from '../context/DataContext';
+
 const Dashboard = ({
-  products = [],
   onUpdateProduct,
   showModal,
   closeModal,
@@ -14,6 +15,7 @@ const Dashboard = ({
   userId,
   appId,
 }) => {
+  const { products } = useData();
   const navigate = useNavigate();
 
   // --- CÁLCULOS DE MÉTRICAS (CORREGIDOS CON LOS NOMBRES DE CAMPO CORRECTOS) ---
